@@ -1,0 +1,10 @@
+{
+    "id": "glove_30",
+    "name": "Luva Tomate",
+    "price": 46,
+    "level": 30,
+    "type": "accessory",
+    "color": "#FF6347",
+    "shape": "glove",
+    "description": ""
+}

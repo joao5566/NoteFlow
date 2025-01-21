@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Itens da Loja</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f9f9f9;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+        code {
+            font-family: "Courier New", Courier, monospace;
+            color: #d14;
+        }
+    </style>
+</head>
+<body>
+    <h1>Guia de Criação de Itens para a Loja</h1>
+
+    <section>
+        <h2>1. Tipos de Itens Suportados</h2>
+        <p>A loja suporta os seguintes tipos de itens, cada um com atributos específicos:</p>
+        <ul>
+            <li><strong>Chapéus (<code>hat</code>):</strong> Itens decorativos equipáveis na cabeça do mascote.</li>
+            <li><strong>Acessórios (<code>accessory</code>):</strong> Itens como óculos ou luvas para o mascote.</li>
+            <li><strong>Cor do Corpo (<code>body_color</code>):</strong> Altera a cor do corpo do mascote.</li>
+            <li><strong>Formato do Corpo (<code>body_shape</code>):</strong> Modifica o formato do corpo do mascote (ex.: círculo, quadrado).</li>
+            <li><strong>Consumíveis (<code>consumable</code>):</strong> Itens que fornecem efeitos temporários, como aumento de energia ou felicidade.</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>2. Estrutura de um Arquivo JSON</h2>
+        <p>Os itens da loja são definidos por arquivos JSON armazenados na pasta <code>shop_items</code>. Cada arquivo representa um único item e deve seguir o formato abaixo:</p>
+
+        <h3>Exemplo de Chapéu</h3>
+        <pre><code>{
+    "id": "red_hat",
+    "name": "Chapéu Vermelho",
+    "type": "hat",
+    "price": 50,
+    "level": 1,
+    "description": "Um chapéu vermelho estiloso."
+}</code></pre>
+
+        <h3>Exemplo de Acessório</h3>
+        <pre><code>{
+    "id": "cool_glasses",
+    "name": "Óculos Descolados",
+    "type": "accessory",
+    "price": 75,
+    "level": 2,
+    "description": "Óculos escuros para deixar o mascote estiloso."
+}</code></pre>
+
+        <h3>Exemplo de Cor do Corpo</h3>
+        <pre><code>{
+    "id": "blue_color",
+    "name": "Cor Azul",
+    "type": "body_color",
+    "price": 30,
+    "level": 1,
+    "color": "#0000FF",
+    "description": "Deixa o corpo do mascote azul vibrante."
+}</code></pre>
+
+        <h3>Exemplo de Formato do Corpo</h3>
+        <pre><code>{
+    "id": "triangle_shape",
+    "name": "Forma Triangular",
+    "type": "body_shape",
+    "price": 60,
+    "level": 3,
+    "shape": "triangle",
+    "description": "Transforma o corpo do mascote em um triângulo."
+}</code></pre>
+
+        <h3>Exemplo de Consumível</h3>
+        <pre><code>{
+    "id": "energy_drink",
+    "name": "Bebida Energética",
+    "type": "consumable",
+    "price": 20,
+    "level": 1,
+    "consumable_type": "energy_boost",
+    "effect": { "amount": 20 },
+    "description": "Aumenta a energia do mascote em 20 pontos."
+}</code></pre>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>3. Campos Obrigatórios</h2>
+        <p>Certifique-se de incluir os seguintes campos em cada item:</p>
+        <ul>
+            <li><strong>id:</strong> Identificador único do item.</li>
+            <li><strong>name:</strong> Nome do item exibido na loja.</li>
+            <li><strong>type:</strong> Tipo do item (<code>hat</code>, <code>accessory</code>, <code>body_color</code>, etc.).</li>
+            <li><strong>price:</strong> Preço do item em moedas.</li>
+            <li><strong>level:</strong> Nível mínimo necessário para desbloquear o item.</li>
+            <li><strong>description:</strong> Texto descritivo exibido na loja.</li>
+        </ul>
+
+        <p>Campos adicionais para tipos específicos:</p>
+        <ul>
+            <li><strong>color:</strong> Código hexadecimal para <code>body_color</code>.</li>
+            <li><strong>shape:</strong> Formato (ex.: <code>circle</code>, <code>triangle</code>) para <code>body_shape</code>.</li>
+            <li><strong>effect:</strong> Objeto que define os efeitos para <code>consumable</code>.</li>
+        </ul>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>4. Boas Práticas</h2>
+        <ul>
+            <li>Use IDs únicos para evitar conflitos entre itens.</li>
+            <li>Teste os novos itens antes de adicioná-los ao ambiente de produção.</li>
+            <li>Garanta que os arquivos JSON estejam bem formatados.</li>
+        </ul>
+    </section>
+</body>
+</html>
+

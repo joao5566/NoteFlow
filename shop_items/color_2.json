@@ -1,0 +1,9 @@
+{
+    "id": "color_2",
+    "name": "Corpo cor Amarelo",
+    "price": 203,
+    "level": 2,
+    "type": "body_color",
+    "color": "#FFFF00",
+    "description": "Corpo cor  Amarelo"
+}

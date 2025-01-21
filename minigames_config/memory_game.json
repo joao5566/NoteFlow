@@ -1,0 +1,17 @@
+{
+  "id": "memory_game",
+  "name": "Jogo de Memória",
+  "file": "memory_game.py",
+  "class": "MemoryGame",
+ "icon":"game_icons/memori.png",
+  "xp_reward_interval": {
+    "points": 1,
+    "xp": 1
+  },
+  "coin_reward_interval": {
+    "points": 2,
+    "coins": 1
+  }
+}
+
+

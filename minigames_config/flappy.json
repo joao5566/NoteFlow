@@ -1,0 +1,17 @@
+{
+  "id": "flappy",
+  "name": "Flappy pet (Pygame)",
+  "file": "flappy.py",
+  "class": "FlappyPetGame",
+	"icon":"game_icons/flappy.png",
+
+  "xp_reward_interval": {
+    "points": 1,
+    "xp": 1
+  },
+  "coin_reward_interval": {
+    "points": 5,
+    "coins": 1
+  }
+}
+

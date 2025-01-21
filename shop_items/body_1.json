@@ -1,0 +1,9 @@
+{
+    "id": "body_1",
+    "type": "body_shape",
+	"name": "Corpo circular",
+    "shape": "circle",
+    "level": 3,
+    "price": 50,
+    "description": "Corpo em forma de circulo"
+}

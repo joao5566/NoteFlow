@@ -1,0 +1,10 @@
+{
+    "id": "glove_27",
+    "name": "Luva Amarelo",
+    "price": 41,
+    "level": 4,
+    "type": "accessory",
+    "color": "#FFFF00",
+    "shape": "glove",
+    "description": ""
+}

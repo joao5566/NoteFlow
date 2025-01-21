@@ -1,0 +1,15 @@
+
+
+{
+    "id": "energy_boost_03",
+    "name": "Energia de Vinho",
+    "price": 85,
+    "level": 5,
+    "type": "consumable",
+    "consumable_type": "energy_boost",
+    "effect": {
+        "amount": 40
+    },
+    "description": "+40 de energia.",
+    "image_path":"images/drink/wine_white.png"
+}

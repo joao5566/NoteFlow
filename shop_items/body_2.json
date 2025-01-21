@@ -1,0 +1,9 @@
+{
+    "id": "body_2",
+    "type": "body_shape",
+	"name":"Corpo Quadado",
+    "shape": "square",
+    "level": 3,
+    "price": 50,
+    "description": "Corpo em forma de quadrado"
+}

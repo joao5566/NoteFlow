@@ -1,0 +1,14 @@
+
+{
+    "id": "energy_boost_02",
+    "name": "Energia de Limão",
+    "price": 75,
+    "level": 5,
+    "type": "consumable",
+    "consumable_type": "energy_boost",
+    "effect": {
+        "amount": 30
+    },
+    "description": "+30 de energia.",
+    "image_path":"images/drink/soft_drink_green.png"
+}

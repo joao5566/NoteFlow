@@ -1,0 +1,38 @@
+[
+  {
+    "id": "Achievement_Click_100",
+    "name": "Coder Novato",
+    "description": "Escreveu 100 linhas de código."
+  },
+  {
+    "id": "Achievement_Click_500",
+    "name": "Coder Intermediário",
+    "description": "Escreveu 500 linhas de código."
+  },
+  {
+    "id": "Achievement_Click_1000",
+    "name": "Coder Mestre",
+    "description": "Escreveu 1000 linhas de código."
+  },
+  {
+    "id": "Achievement_Level_5",
+    "name": "Nível 5",
+    "description": "Alcançou o nível 5."
+  },
+  {
+    "id": "Achievement_Upgrades_10",
+    "name": "Upgrade Hunter",
+    "description": "Comprou 10 upgrades."
+  },
+  {
+    "id": "Achievement_Prestige_5",
+    "name": "Prestige Expert",
+    "description": "Realizou 5 prestígios."
+  },
+  {
+    "id": "Achievement_Level_10",
+    "name": "Decade Coder",
+    "description": "Alcançou o nível 10."
+  }
+]
+

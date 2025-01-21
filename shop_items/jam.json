@@ -1,0 +1,12 @@
+{
+    "id": "jam",
+    "name": "Jeleia",
+    "type": "consumable",
+    "price": 20,
+    "level": 1,
+    "consumable_type": "food",
+    "effect": { "hunger_restore": 10 },
+    "description": "Restaura a fome em 20 pontos.",
+	"image_path":"images/candy/jam_strawberry.png"
+}
+

@@ -1,0 +1,12 @@
+{
+    "id": "sorvete",
+    "name": "Sorve de morango",
+    "type": "consumable",
+    "price": 25,
+    "level": 1,
+    "consumable_type": "food",
+    "effect": { "hunger_restore": 25 },
+    "description": "Restaura a fome em 25 pontos.",
+	"image_path":"images/candy/strawberry_ice_cream.png"
+}
+

@@ -1,0 +1,10 @@
+{
+    "id": "hat_7",
+    "name": "Chap\u00e9u Ciano",
+    "price": 201,
+    "level": 3,
+    "type": "hat",
+    "color": "#00FFFF",
+    "shape": "triangle",
+    "description": "Chap\u00e9u forma triangle"
+}

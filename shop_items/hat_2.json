@@ -1,0 +1,10 @@
+{
+    "id": "hat_2",
+    "name": "Chap\u00e9u Amarelo",
+    "price": 181,
+    "level": 12,
+    "type": "hat",
+    "color": "#FFFF00",
+    "shape": "square",
+    "description": "Chap\u00e9u forma square"
+}

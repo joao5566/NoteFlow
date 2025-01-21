@@ -1,0 +1,10 @@
+{
+    "id": "glasses_1",
+    "name": "\u00d3culos Ciano",
+    "price": 21,
+    "level": 10,
+    "type": "accessory",
+    "color": "#00FFFF",
+    "shape": "glasses",
+    "description": ""
+}

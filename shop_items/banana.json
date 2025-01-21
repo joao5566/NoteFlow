@@ -1,0 +1,13 @@
+{
+    "id": "happiness_boost_02",
+    "name": "Banana",
+    "price": 40,
+    "level": 1,
+    "type": "consumable",
+    "consumable_type": "happiness_boost",
+    "effect": {
+        "amount": 20
+    },
+    "description": "+20 de Felicidade.",
+     "image_path":"images/green/banana.png"
+}

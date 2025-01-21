@@ -1,0 +1,10 @@
+{
+    "id": "glove_5",
+    "name": "Luva Oliva",
+    "price": 44,
+    "level": 25,
+    "type": "accessory",
+    "color": "#808000",
+    "shape": "glove",
+    "description": ""
+}

@@ -1,0 +1,165 @@
+[
+    {
+        "name": "Auto Generator I",
+        "description": "Aumenta a geração automática de código em +1 por segundo.",
+        "base_cost": 100,
+        "current_cost": 100,
+        "effect": "auto_code_rate",
+        "value": 1,
+        "category": "Geradores"
+    },
+    {
+        "name": "Auto Generator II",
+        "description": "Aumenta a geração automática de código em +5 por segundo.",
+        "base_cost": 500,
+        "current_cost": 500,
+        "effect": "auto_code_rate",
+        "value": 5,
+        "category": "Geradores"
+    },
+    {
+        "name": "Auto Generator III",
+        "description": "Aumenta a geração automática de código em +10 por segundo.",
+        "base_cost": 2000,
+        "current_cost": 2000,
+        "effect": "auto_code_rate",
+        "value": 10,
+        "category": "Geradores"
+    },
+    {
+        "name": "Click Booster I",
+        "description": "Aumenta o multiplicador de cliques em +1.",
+        "base_cost": 50,
+        "current_cost": 50,
+        "effect": "click_multiplier",
+        "value": 1,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Click Booster II",
+        "description": "Aumenta o multiplicador de cliques em +5.",
+        "base_cost": 250,
+        "current_cost": 250,
+        "effect": "click_multiplier",
+        "value": 5,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Click Booster III",
+        "description": "Aumenta o multiplicador de cliques em +10.",
+        "base_cost": 1000,
+        "current_cost": 1000,
+        "effect": "click_multiplier",
+        "value": 10,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Prestige Enhancer I",
+        "description": "Aumenta o multiplicador de prestígio em x1.1.",
+        "base_cost": 1000,
+        "current_cost": 1000,
+        "effect": "prestige_multiplier",
+        "value": 1.1,
+        "category": "Prestígio"
+    },
+    {
+        "name": "Prestige Enhancer II",
+        "description": "Aumenta o multiplicador de prestígio em x1.2.",
+        "base_cost": 5000,
+        "current_cost": 5000,
+        "effect": "prestige_multiplier",
+        "value": 1.2,
+        "category": "Prestígio"
+    },
+    {
+        "name": "Prestige Enhancer III",
+        "description": "Aumenta o multiplicador de prestígio em x1.3.",
+        "base_cost": 20000,
+        "current_cost": 20000,
+        "effect": "prestige_multiplier",
+        "value": 1.3,
+        "category": "Prestígio"
+    },
+    {
+        "name": "Auto Generator IV",
+        "description": "Aumenta a geração automática de código em +20 por segundo.",
+        "base_cost": 8000,
+        "current_cost": 8000,
+        "effect": "auto_code_rate",
+        "value": 20,
+        "category": "Geradores"
+    },
+    {
+        "name": "Click Booster IV",
+        "description": "Aumenta o multiplicador de cliques em +20.",
+        "base_cost": 4000,
+        "current_cost": 4000,
+        "effect": "click_multiplier",
+        "value": 20,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Prestige Enhancer IV",
+        "description": "Aumenta o multiplicador de prestígio em x1.4.",
+        "base_cost": 50000,
+        "current_cost": 50000,
+        "effect": "prestige_multiplier",
+        "value": 1.4,
+        "category": "Prestígio"
+    },
+    {
+        "name": "Auto Generator V",
+        "description": "Aumenta a geração automática de código em +50 por segundo.",
+        "base_cost": 30000,
+        "current_cost": 30000,
+        "effect": "auto_code_rate",
+        "value": 50,
+        "category": "Geradores"
+    },
+    {
+        "name": "Click Booster V",
+        "description": "Aumenta o multiplicador de cliques em +50.",
+        "base_cost": 20000,
+        "current_cost": 20000,
+        "effect": "click_multiplier",
+        "value": 50,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Prestige Enhancer V",
+        "description": "Aumenta o multiplicador de prestígio em x1.5.",
+        "base_cost": 100000,
+        "current_cost": 100000,
+        "effect": "prestige_multiplier",
+        "value": 1.5,
+        "category": "Prestígio"
+    },
+    {
+        "name": "Auto Generator VI",
+        "description": "Aumenta a geração automática de código em +100 por segundo.",
+        "base_cost": 100000,
+        "current_cost": 100000,
+        "effect": "auto_code_rate",
+        "value": 100,
+        "category": "Geradores"
+    },
+    {
+        "name": "Click Booster VI",
+        "description": "Aumenta o multiplicador de cliques em +100.",
+        "base_cost": 50000,
+        "current_cost": 50000,
+        "effect": "click_multiplier",
+        "value": 100,
+        "category": "Multiplicadores"
+    },
+    {
+        "name": "Prestige Enhancer VI",
+        "description": "Aumenta o multiplicador de prestígio em x1.6.",
+        "base_cost": 200000,
+        "current_cost": 200000,
+        "effect": "prestige_multiplier",
+        "value": 1.6,
+        "category": "Prestígio"
+    }
+]
+

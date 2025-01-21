@@ -1,0 +1,18 @@
+{
+  "id": "snake_game",
+  "name": "Jogo da Cobrinha",
+  "file": "snake_game.py",
+  "class":"SnakeGame",
+	"icon":"game_icons/snake.png",
+
+  "xp_reward_interval": {
+	  "points": 10,
+	  "xp":1
+  },
+  "coin_reward_interval": {
+    "points": 10,
+    "coins": 1
+  }
+}
+
+

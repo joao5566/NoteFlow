@@ -1,0 +1,10 @@
+{
+    "id": "glove_17",
+    "name": "Luva Cinza",
+    "price": 60,
+    "level": 16,
+    "type": "accessory",
+    "color": "#808080",
+    "shape": "glove",
+    "description": ""
+}

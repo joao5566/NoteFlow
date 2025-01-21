@@ -1,0 +1,10 @@
+{
+    "id": "glove_6",
+    "name": "Luva Branco",
+    "price": 31,
+    "level": 12,
+    "type": "accessory",
+    "color": "#FFFFFF",
+    "shape": "glove",
+    "description": ""
+}

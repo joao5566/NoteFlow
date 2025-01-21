@@ -1,0 +1,10 @@
+{
+    "id": "hat_1",
+    "name": "Chap\u00e9u Branco",
+    "price": 542,
+    "level": 22,
+    "type": "hat",
+    "color": "#FFFFFF",
+    "shape": "triangle",
+    "description": "Chap\u00e9u forma triangle"
+}

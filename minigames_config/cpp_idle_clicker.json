@@ -1,0 +1,16 @@
+{
+  "id": "programming_clicker",
+  "name": "Programming Clicker",
+  "file": "cpp_idle_clicker.py",
+  "class": "ProgrammingClickerGame",
+	   "icon":"game_icons/cpp.png",
+    "xp_reward_interval": {
+    "points": 1,
+    "xp": 2
+  },
+  "coin_reward_interval": {
+    "points": 1,
+    "coins": 1
+  }
+}
+

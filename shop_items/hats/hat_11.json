@@ -1,0 +1,10 @@
+{
+    "id": "hat_11",
+    "name": "Chap\u00e9u Tomate",
+    "price": 348,
+    "level": 8,
+    "type": "hat",
+    "color": "#FF6347",
+    "shape": "square",
+    "description": "Chap\u00e9u forma square"
+}

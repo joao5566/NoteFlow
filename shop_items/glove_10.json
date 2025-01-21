@@ -1,0 +1,10 @@
+{
+    "id": "glove_10",
+    "name": "Luva Marfim",
+    "price": 46,
+    "level": 12,
+    "type": "accessory",
+    "color": "#FDF5E6",
+    "shape": "glove",
+    "description": ""
+}

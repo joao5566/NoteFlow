@@ -1,0 +1,16 @@
+
+
+
+{
+    "id": "energy_boost_04",
+    "name": "Refri energetico",
+    "price": 100,
+    "level": 15,
+    "type": "consumable",
+    "consumable_type": "energy_boost",
+    "effect": {
+        "amount": 100
+    },
+    "description": "+100 de energia.",
+    "image_path":"images/drink/soft_drink_red.png"
+}

@@ -1,0 +1,10 @@
+{
+    "id": "glasses_10",
+    "name": "\u00d3culos Azul",
+    "price": 100,
+    "level": 10,
+    "type": "accessory",
+    "color": "#0000FF",
+    "shape": "glasses",
+    "description": ""
+}

@@ -1,0 +1,13 @@
+
+{
+    "id": "chocolate",
+    "name": "Chocolate",
+    "type": "consumable",
+    "price": 30,
+    "level": 1,
+    "consumable_type": "food",
+    "effect": { "hunger_restore": 30 },
+    "description": "Restaura a fome em 30 pontos.",
+	"image_path":"images/candy/milk_chocolate.png"
+}
+

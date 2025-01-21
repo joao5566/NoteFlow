@@ -1,0 +1,13 @@
+{
+    "id": "candy_bar",
+    "name": "Barra de cereal",
+    "price": 15,
+    "level": 1,
+    "type": "consumable",
+    "consumable_type": "food",
+    "effect": {
+        "hunger_restore": 5
+    },
+    "description": "Restaura 15 de fome.",
+    "image_path": "images/candy/candy_bar.png"
+}

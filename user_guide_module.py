@@ -1,0 +1,45 @@
+from PyQt5.QtWidgets import QMessageBox
+
+
+def show_user_guide(window):
+    """ Exibe um guia do usuário explicando as funcionalidades do aplicativo. """
+    guide_text = (
+        "<h2>Guia do Usuário - Calendário Interativo com Notas</h2>"
+        "<p>Desenvolvido por JVRM, este aplicativo multifuncional permite gerenciar suas notas, tarefas, lembretes e muito mais. "
+        "Com recursos para personalizar o tema, visualizar estatísticas e exportar dados, você pode otimizar a organização do seu dia a dia.</p>"
+        "<h3>Sobre o Aplicativo:</h3>"
+        "<p>O Calendário Interativo com Notas oferece uma interface intuitiva e práticas funcionalidades de organização. "
+        "Você pode adicionar, editar e excluir tarefas, notas e lembretes com facilidade, além de personalizar o visual do aplicativo e analisar seu progresso com gráficos.</p>"
+        "<h3>Funcionalidades Principais:</h3>"
+        "<ul>"
+        "  <li><b>Adicionar/Editar Notas:</b> Clique em um dia no calendário para abrir o editor de notas. Digite o texto da nota e adicione categorias e tags, se desejar. Clique em 'Salvar' para gravar a nota.</li>"
+        "  <li><b>Gerenciar Tarefas:</b> Acesse o gerenciador de tarefas no menu 'Arquivo' > 'Gerenciar Tarefas'. Adicione, edite ou apague tarefas conforme necessário, e marque-as como concluídas diretamente da tabela.</li>"
+        "  <li><b>Definir Lembretes:</b> Clique no botão 'Definir Lembrete' para criar um novo lembrete. Insira a data e a mensagem do lembrete. Clique em 'Salvar' para adicionar o lembrete.</li>"
+        "  <li><b>Personalizar Tema:</b> Vá em 'Arquivo' > 'Personalizar Tema' para alterar as cores do aplicativo. Escolha um esquema predefinido ou defina as cores manualmente.</li>"
+        "  <li><b>Exportar e Importar Notas:</b> Exportar: Salve suas notas em um arquivo JSON ou PDF pelo menu 'Arquivo'. Importar: Carregue notas de um arquivo JSON existente.</li>"
+        "  <li><b>Visualizar Estatísticas:</b> No menu 'Arquivo', clique em 'Visualizar Estatísticas' para ver gráficos sobre suas notas e tarefas, ajudando a monitorar seu progresso.</li>"
+        "  <li><b>Kanban de Tarefas:</b> Organize suas tarefas com um Kanban dinâmico, movendo os itens entre diferentes colunas de 'A Fazer', 'Fazendo' e 'Feito'.</li>"
+        "  <li><b>Gerenciamento de Lembretes:</b> Defina lembretes para atividades importantes e visualize-os diretamente no calendário para garantir que nada seja esquecido.</li>"
+        "</ul>"
+        "<h3>Atalhos de Teclado:</h3>"
+        "<ul>"
+        "  <li><b>Ctrl+S:</b> Salvar Nota</li>"
+        "  <li><b>Ctrl+Z:</b> Desfazer</li>"
+        "  <li><b>Ctrl+Y:</b> Refazer</li>"
+        "  <li><b>Ctrl+E:</b> Exportar Nota</li>"
+        "  <li><b>Ctrl+N:</b> Nova Nota</li>"
+        "  <li><b>Ctrl+T:</b> Nova Tarefa</li>"
+        "  <li><b>Ctrl+L:</b> Novo Lembrete</li>"
+        "</ul>"
+        "<h3>Exemplo de Uso:</h3>"
+        "<ol>"
+        "  <li>Selecione uma data no calendário.</li>"
+        "  <li>Digite a nota e adicione tags como 'trabalho, pessoal'.</li>"
+        "  <li>Clique em 'Salvar'.</li>"
+        "  <li>Veja a nota marcada no calendário e exporte-a, se necessário.</li>"
+        "  <li>Adicione tarefas e marque-as como concluídas diretamente da tabela de tarefas.</li>"
+        "</ol>"
+        "<p><i>Desenvolvido com PyQt5, matplotlib, SQLite e Kanban.</i></p>"
+    )
+    QMessageBox.information(window, "Guia do Usuário", guide_text)
+

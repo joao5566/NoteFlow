@@ -1,0 +1,10 @@
+{
+    "id": "glove_11",
+    "name": "Luva Dourado",
+    "price": 37,
+    "level": 28,
+    "type": "accessory",
+    "color": "#FFD700",
+    "shape": "glove",
+    "description": ""
+}

@@ -1,0 +1,11 @@
+{
+    "id": "energy_drink",
+    "name": "Bebida Energética",
+    "type": "consumable",
+    "price": 20,
+    "level": 1,
+    "consumable_type": "energy_boost",
+    "effect": { "amount": 20 },
+    "description": "Aumenta a energia do mascote em 20 pontos.",
+	 "image_path": "images/drink/soft_drink_blue.png"
+}

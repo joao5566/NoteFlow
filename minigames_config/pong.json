@@ -1,0 +1,18 @@
+{
+  "id": "pong",
+  "name": "Pong",
+  "file": "pong.py",
+  "class":"PongGame",
+	"icon":"game_icons/pong.png",
+
+  "xp_reward_interval": {
+	  "points": 1,
+	  "xp":5
+  },
+  "coin_reward_interval": {
+    "points": 1,
+    "coins": 10
+  }
+}
+
+

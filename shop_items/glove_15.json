@@ -1,0 +1,10 @@
+{
+    "id": "glove_15",
+    "name": "Luva Verde",
+    "price": 33,
+    "level": 10,
+    "type": "accessory",
+    "color": "#00FF00",
+    "shape": "glove",
+    "description": ""
+}

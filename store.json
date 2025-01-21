@@ -1,0 +1,57 @@
+[
+  {
+    "category": "Boosts Temporários",
+    "name": "Time Booster",
+    "description": "Aumenta a taxa de geração automática de código por 10 segundos.",
+    "cost": 50,
+    "effect": "auto_code_rate",
+    "value": 10,
+    "required_level": 1
+  },
+  {
+    "category": "Boosts Temporários",
+    "name": "Double XP Potion",
+    "description": "Dobra o ganho de XP por 30 segundos.",
+    "cost": 75,
+    "effect": "XP_multiplier",
+    "value": 2,
+    "required_level": 2
+  },
+  {
+    "category": "Automação",
+    "name": "Auto Upgrader",
+    "description": "Automatiza a compra de upgrades.",
+    "cost": 150,
+    "effect": "auto_upgrader_enabled",
+    "value": true,
+    "required_level": 3
+  },
+  {
+    "category": "Melhorias Permanentes",
+    "name": "Master Coder",
+    "description": "Aumenta o número de linhas geradas por clique em +5.",
+    "cost": 500,
+    "effect": "click_multiplier",
+    "value": 5,
+    "required_level": 5
+  },
+  {
+    "category": "Melhorias Permanentes",
+    "name": "Quantum Compiler",
+    "description": "Aumenta a geração automática de código em +50 por segundo.",
+    "cost": 20000,
+    "effect": "auto_code_rate",
+    "value": 50,
+    "required_level": 15
+  },
+  {
+    "category": "Prestígio",
+    "name": "Prestige Multiplier",
+    "description": "Multiplica a geração de código por x2 ao prestigiar.",
+    "cost": 5000,
+    "effect": "prestige_multiplier",
+    "value": 2,
+    "required_level": 10
+  }
+]
+

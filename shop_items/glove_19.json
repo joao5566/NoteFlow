@@ -1,0 +1,10 @@
+{
+    "id": "glove_19",
+    "name": "Luva Laranja",
+    "price": 52,
+    "level": 8,
+    "type": "accessory",
+    "color": "#FFA500",
+    "shape": "glove",
+    "description": ""
+}

@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia de Estrutura para Minijogos</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+        h1, h2, h3 { color: #333; }
+        pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow-x: auto; }
+        code { font-family: "Courier New", Courier, monospace; color: #d14; }
+    </style>
+</head>
+<body>
+    <h1>Guia de Estrutura para Minijogos Integrados no Sistema de Gamificação</h1>
+    <p>Este guia descreve como estruturar corretamente um minijogo para integrá-lo ao sistema de gamificação existente. Seguindo estas orientações, você garantirá que o minijogo funcione sem problemas e retorne o <strong>score</strong> corretamente ao sistema principal.</p>
+
+    <hr>
+
+    <h2>1. Estrutura básica do minijogo</h2>
+    <h3>Classe principal do jogo</h3>
+    <p>O minijogo deve ser encapsulado em uma <strong>classe principal</strong> que tenha:</p>
+    <ul>
+        <li>Um método <code>__init__</code> para inicializar o jogo.</li>
+        <li>Um método <code>run()</code> que executa o loop principal do jogo e retorna o <strong>score</strong> ao final.</li>
+    </ul>
+    <pre><code>class NomeDoJogo:
+    def __init__(self):
+        pygame.init()
+        self.tela = pygame.display.set_mode((largura, altura))
+        pygame.display.set_caption("Nome do Jogo")
+        self.relogio = pygame.time.Clock()
+        self.score = 0
+        self.rodando = True
+
+    def run(self):
+        while self.rodando:
+            # Lógica do jogo
+            
+            pygame.display.flip()
+            self.relogio.tick(fps)
+
+        pygame.quit()
+        return self.score
+</code></pre>
+
+    <h3>Requisitos do método <code>run()</code></h3>
+    <p>O método <code>run()</code> deve:</p>
+    <ol>
+        <li>Executar o loop principal do jogo.</li>
+        <li>Encerrar o jogo corretamente ao término, utilizando <code>pygame.quit()</code>.</li>
+        <li>Retornar o <strong>score</strong> final como um inteiro, que será usado pelo sistema de gamificação para calcular recompensas.</li>
+    </ol>
+
+    <hr>
+
+    <h2>2. Inicialização e encerramento do Pygame</h2>
+    <h3>Inicialização:</h3>
+    <p>Use <code>pygame.init()</code> no construtor (<code>__init__</code>) da classe principal.</p>
+
+    <h3>Encerramento:</h3>
+    <p>Use <code>pygame.quit()</code> ao final do método <code>run()</code> para garantir que o Pygame seja encerrado corretamente após o término do jogo.</p>
+
+    <hr>
+
+    <h2>3. Retorno do score</h2>
+    <p>O score final do minijogo deve ser retornado como um <strong>inteiro</strong> ao final do método <code>run()</code>.</p>
+    <p>Exemplo de retorno:</p>
+    <pre><code>pygame.quit()
+return self.score
+</code></pre>
+
+    <hr>
+
+    <h2>4. Exemplo completo de um minijogo</h2>
+    <p>Abaixo está um exemplo de um minijogo simples seguindo esta estrutura:</p>
+    <pre><code>import pygame
+
+class SimpleClickerGame:
+    def __init__(self):
+        pygame.init()
+        self.tela = pygame.display.set_mode((400, 300))
+        pygame.display.set_caption("Simple Clicker Game")
+        self.relogio = pygame.time.Clock()
+        self.score = 0
+        self.rodando = True
+
+    def run(self):
+        while self.rodando:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.rodando = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    self.score += 1
+
+            self.tela.fill((255, 255, 255))
+            fonte = pygame.font.SysFont(None, 36)
+            texto = fonte.render(f"Score: {self.score}", True, (0, 0, 0))
+            self.tela.blit(texto, (10, 10))
+
+            pygame.display.flip()
+            self.relogio.tick(60)
+
+        pygame.quit()
+        return self.score
+
+if __name__ == "__main__":
+    jogo = SimpleClickerGame()
+    final_score = jogo.run()
+    print(f"Score final: {final_score}")
+</code></pre>
+
+    <hr>
+
+    <h2>5. Boas práticas</h2>
+    <ul>
+        <li><strong>Encapsulamento:</strong> Sempre encapsule a lógica do jogo dentro de uma classe para facilitar a integração.</li>
+        <li><strong>Retorno consistente:</strong> Certifique-se de que o método <code>run()</code> sempre retorne o score como um inteiro.</li>
+        <li><strong>Manutenção de estado:</strong> Evite usar variáveis globais; mantenha o estado do jogo dentro da classe principal.</li>
+    </ul>
+
+    <hr>
+
+    <p>Seguindo estas orientações, seus minijogos estarão prontos para serem integrados ao sistema de gamificação sem problemas.</p>
+</body>
+</html>
+
+
+

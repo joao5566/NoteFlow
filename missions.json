@@ -1,0 +1,89 @@
+[
+    {
+        "category": "Código",
+        "description": "Escreva 50 linhas de código.",
+        "requirement": "lines_of_code >= 50",
+        "reward_xp": 10,
+        "reward_coins": 20
+    },
+    {
+        "category": "Upgrades",
+        "description": "Compre 3 upgrades.",
+        "requirement": "sum_upgrades_owned >= 3",
+        "reward_xp": 0,
+        "reward_coins": 30
+    },
+    {
+        "category": "Níveis",
+        "description": "Alcance o nível 3.",
+        "requirement": "level >= 3",
+        "reward_xp": 20,
+        "reward_coins": 0
+    },
+    {
+        "category": "Código",
+        "description": "Escreva 200 linhas de código.",
+        "requirement": "lines_of_code >= 200",
+        "reward_xp": 30,
+        "reward_coins": 50
+    },
+    {
+        "category": "Upgrades",
+        "description": "Compre 5 upgrades.",
+        "requirement": "sum_upgrades_owned >= 5",
+        "reward_xp": 0,
+        "reward_coins": 75
+    },
+    {
+        "category": "Níveis",
+        "description": "Alcance o nível 5.",
+        "requirement": "level >= 5",
+        "reward_xp": 50,
+        "reward_coins": 0
+    },
+    {
+        "category": "Prestígios",
+        "description": "Prestigie 2 vezes.",
+        "requirement": "total_prestiges >= 2",
+        "reward_xp": 100,
+        "reward_coins": 100
+    },
+    {
+        "category": "Código",
+        "description": "Escreva 500 linhas de código.",
+        "requirement": "lines_of_code >= 500",
+        "reward_xp": 70,
+        "reward_coins": 150
+    },
+    {
+        "category": "Upgrades",
+        "description": "Compre 10 upgrades.",
+        "requirement": "sum_upgrades_owned >= 10",
+        "reward_xp": 0,
+        "reward_coins": 200
+    },
+    {
+        "category": "Níveis",
+        "description": "Alcance o nível 10.",
+        "requirement": "level >= 10",
+        "reward_xp": 200,
+        "reward_coins": 0
+    },
+    {
+        "category": "Temporário",
+        "description": "Escreva 100 linhas de código nas próximas 10 minutos.",
+        "requirement": "lines_of_code >= 100",
+        "reward_xp": 50,
+        "reward_coins": 100,
+        "time_limit": 600
+    },
+    {
+        "category": "Exclusivo",
+        "description": "Alcance o nível 7 para desbloquear o 'Master Coder'.",
+        "requirement": "level >= 7",
+        "reward_xp": 0,
+        "reward_coins": 150,
+        "reward_upgrade": "Master Coder"
+    }
+]
+

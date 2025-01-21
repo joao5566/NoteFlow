@@ -1,0 +1,12 @@
+{
+    "id": "cabbage",
+    "name": "Maça verde",
+    "type": "consumable",
+    "price": 2,
+    "level": 1,
+    "consumable_type": "food",
+    "effect": { "hunger_restore": 15 },
+    "description": "Restaura fome em 15.",
+	"image_path":"images/green/green_apple.png"
+}
+

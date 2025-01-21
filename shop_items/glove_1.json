@@ -1,0 +1,10 @@
+{
+    "id": "glove_1",
+    "name": "Luva Magenta",
+    "price": 34,
+    "level": 1,
+    "type": "accessory",
+    "color": "#FF00FF",
+    "shape": "glove",
+    "description": ""
+}

@@ -1,0 +1,10 @@
+{
+    "id": "hat_25",
+    "name": "Chap\u00e9u Laranja Vermelha",
+    "price": 333,
+    "level": 13,
+    "type": "hat",
+    "color": "#FF4500",
+    "shape": "triangle",
+    "description": "Chap\u00e9u forma triangle"
+}

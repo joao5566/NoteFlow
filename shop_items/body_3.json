@@ -1,0 +1,9 @@
+{
+    "id": "body_3",
+    "type": "body_shape",
+	"name": "Corpo triangulo",
+    "shape": "triangle",
+    "level": 3,
+    "price": 50,
+    "description": "Corpo em forma de triangle"
+}
