@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -73,7 +72,37 @@ return self.score
 
     <hr>
 
-    <h2>4. Exemplo completo de um minijogo</h2>
+    <h2>4. Onde colocar os minijogos</h2>
+    <p>Os minijogos devem ser colocados na pasta <strong>.pet_game/minigames</strong>, localizada no diretório home do usuário (<code>~/.pet_game/minigames</code>). Esta é a pasta padrão usada pelo aplicativo para buscar novos jogos. Certifique-se de seguir as orientações de estrutura para garantir o funcionamento correto.</p>
+
+    <h3>Passos para adicionar novos minijogos:</h3>
+    <ol>
+        <li>Coloque o arquivo Python do jogo na pasta <code>~/.pet_game/minigames</code>.</li>
+        <li>Adicione um arquivo de configuração JSON correspondente na pasta <code>~/.pet_game/minigames_config</code>.</li>
+        <li>O JSON deve conter informações como o nome do jogo, ícone e recompensas, seguindo o formato padrão.</li>
+    </ol>
+
+    <p>Exemplo de arquivo JSON de configuração:</p>
+    <pre><code>{
+    "id": "simple_clicker",
+    "name": "Simple Clicker",
+    "file": "simple_clicker_game.py",
+    "class": "SimpleClickerGame",
+    "icon": "game_icons/clicker.png",
+    "xp_reward_interval": {
+        "points": 10,
+        "xp": 1
+    },
+    "coin_reward_interval": {
+        "points": 10,
+        "coins": 1
+    }
+}
+</code></pre>
+
+    <hr>
+
+    <h2>5. Exemplo completo de um minijogo</h2>
     <p>Abaixo está um exemplo de um minijogo simples seguindo esta estrutura:</p>
     <pre><code>import pygame
 
@@ -113,11 +142,12 @@ if __name__ == "__main__":
 
     <hr>
 
-    <h2>5. Boas práticas</h2>
+    <h2>6. Boas práticas</h2>
     <ul>
         <li><strong>Encapsulamento:</strong> Sempre encapsule a lógica do jogo dentro de uma classe para facilitar a integração.</li>
         <li><strong>Retorno consistente:</strong> Certifique-se de que o método <code>run()</code> sempre retorne o score como um inteiro.</li>
         <li><strong>Manutenção de estado:</strong> Evite usar variáveis globais; mantenha o estado do jogo dentro da classe principal.</li>
+        <li><strong>Teste:</strong> Sempre teste seus jogos antes de adicioná-los ao sistema para garantir que funcionem conforme o esperado.</li>
     </ul>
 
     <hr>
@@ -125,6 +155,4 @@ if __name__ == "__main__":
     <p>Seguindo estas orientações, seus minijogos estarão prontos para serem integrados ao sistema de gamificação sem problemas.</p>
 </body>
 </html>
-
-
 

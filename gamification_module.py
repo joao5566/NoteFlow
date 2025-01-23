@@ -4,6 +4,10 @@ import random
 import os
 import json
 import sys
+import shutil
+
+from PyQt5.QtWidgets import QPushButton, QMessageBox
+
 # Adiciona a pasta minigames ao sys.path
 #sys.path.append(os.path.join(os.path.dirname(__file__), 'minigames'))
 from PyQt5.QtWidgets import (
@@ -44,6 +48,45 @@ def load_minigames():
                 print(f"Erro ao carregar o minijogo {file_name}: {e}")
 
     return minigames
+
+
+def copiar_pastas_padrao():
+    # Caminhos das pastas padrão
+    minigames_default_path = os.path.join(os.path.dirname(__file__), "minigames")
+    minigames_config_default_path = os.path.join(os.path.dirname(__file__), "minigames_config")
+
+    # Caminhos das pastas de usuário
+    minigames_user_path = os.path.expanduser("~/.pet_game/minigames")
+    minigames_config_user_path = os.path.expanduser("~/.pet_game/minigames_config")
+
+    # Copiar pasta minigames
+    if os.path.exists(minigames_default_path):
+        if not os.path.exists(minigames_user_path):
+            os.makedirs(minigames_user_path)
+        for arquivo in os.listdir(minigames_default_path):
+            origem = os.path.join(minigames_default_path, arquivo)
+            destino = os.path.join(minigames_user_path, arquivo)
+            if not os.path.exists(destino):  # Evita sobrescrever arquivos já existentes
+                shutil.copy(origem, destino)
+
+    # Copiar pasta minigames_config
+    if os.path.exists(minigames_config_default_path):
+        if not os.path.exists(minigames_config_user_path):
+            os.makedirs(minigames_config_user_path)
+        for arquivo in os.listdir(minigames_config_default_path):
+            origem = os.path.join(minigames_config_default_path, arquivo)
+            destino = os.path.join(minigames_config_user_path, arquivo)
+            if not os.path.exists(destino):  # Evita sobrescrever arquivos já existentes
+                shutil.copy(origem, destino)
+
+    # Mensagem de confirmação para o usuário
+    QMessageBox.information(None, "Pasta Copiada", "Os minigames e configurações padrão foram copiados com sucesso para a pasta de usuário!")
+
+# Exemplo de como adicionar o botão à interface
+def adicionar_botao_copiar_pastas(layout):
+    botao_copiar = QPushButton("Copiar Minigames e Configurações")
+    botao_copiar.clicked.connect(copiar_pastas_padrao)
+    layout.addWidget(botao_copiar)
 
 class PetGameModule(QDialog):
     def __init__(self, parent=None):
@@ -200,6 +243,13 @@ class PetGameModule(QDialog):
         self.init_games_tab()
         self.init_pomodoro_tab()
         self.init_shop_tab()
+        
+         # Adiciona o botão para copiar minigames padrão
+        config_tab = QWidget()
+        config_layout = QVBoxLayout(config_tab) 
+        adicionar_botao_copiar_pastas(config_layout)  # Chama a função correta que adiciona o botão
+
+        self.tabs.addTab(config_tab, "Configurações")
 
         layout.addWidget(self.tabs)
 
@@ -484,7 +534,8 @@ class PetGameModule(QDialog):
         #self.hat_selector.addItems(["Selecionar chapéu"] + self.unlocked_hats)
         #self.hat_selector.setCurrentText("Selecionar chapéu" if not self.equipped_hat else self.equipped_hat)
 
-
+    
+   
     def start_status_timer(self):
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.decrease_status)
