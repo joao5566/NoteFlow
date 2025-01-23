@@ -3,6 +3,7 @@ import sqlite3
 import random
 import os
 import json
+import sys
 # Adiciona a pasta minigames ao sys.path
 #sys.path.append(os.path.join(os.path.dirname(__file__), 'minigames'))
 from PyQt5.QtWidgets import (
@@ -19,53 +20,30 @@ from drawing_utils import draw_shape
 
 DB_PATH = 'pet_game.db'
 
+def get_minigames_path():
+    # Diretório externo para armazenar minigames
+    return os.path.expanduser("~/.pet_game/minigames_config/")
+
 
 def load_minigames():
     minigames = []
-    minigames_path = "minigames_config"
+    minigames_path = get_minigames_path()
 
+    # Cria o diretório, se não existir
     if not os.path.exists(minigames_path):
-        QMessageBox.warning(None, "Erro", "A pasta de minijogos não foi encontrada.")
-        return minigames
+        os.makedirs(minigames_path)
 
+    # Procura por arquivos JSON no diretório
     for file_name in os.listdir(minigames_path):
         if file_name.endswith(".json"):
-            game_path = os.path.join(minigames_path, file_name)
-            with open(game_path, "r") as file:
-                game_data = json.load(file)
-                
-                # Verifica se o caminho do ícone está correto e se o arquivo existe
-                icon_path = game_data.get("icon", "")
-                if icon_path and not os.path.exists(icon_path):
-                    QMessageBox.warning(None, "Erro", f"Ícone do minijogo {game_data['name']} não encontrado: {icon_path}")
-                    icon_path = "path_to_default_icon/default_icon.png"  # Define um ícone padrão, se necessário
+            try:
+                with open(os.path.join(minigames_path, file_name), "r") as file:
+                    game_data = json.load(file)
+                    minigames.append(game_data)
+            except Exception as e:
+                print(f"Erro ao carregar o minijogo {file_name}: {e}")
 
-                game_data["icon"] = icon_path  # Atualiza o caminho do ícone, se necessário
-
-                minigames.append(game_data)
-
-    if not minigames:
-        QMessageBox.warning(None, "Erro", "Nenhum minijogo foi encontrado.")
-    
     return minigames
-def load_minigames():
-    minigames = []
-    minigames_path = "minigames_config"
-
-    if not os.path.exists(minigames_path):
-        QMessageBox.warning(None, "Erro", "A pasta de minijogos não foi encontrada.")
-        return minigames
-
-    for file_name in os.listdir(minigames_path):
-        if file_name.endswith(".json"):
-            with open(os.path.join(minigames_path, file_name), "r") as file:
-                game_data = json.load(file)
-                minigames.append(game_data)
-
-    if not minigames:
-        QMessageBox.warning(None, "Erro", "Nenhum minijogo foi encontrado.")
-    return minigames
-
 
 class PetGameModule(QDialog):
     def __init__(self, parent=None):
@@ -410,20 +388,37 @@ class PetGameModule(QDialog):
         xp_reward_interval = game.get("xp_reward_interval", None)
         coin_reward_interval = game.get("coin_reward_interval", None)
 
-        # Importa o módulo do minijogo dinamicamente
-        game_module_path = f"minigames.{game_file[:-3]}"
-        game_module = __import__(game_module_path, fromlist=[""])
-        game_class = getattr(game_module, game_class_name)
-        game_instance = game_class()  # Instancia o minijogo
+        # Caminho para a pasta local de minigames
+        local_minigames_path = os.path.join(os.path.dirname(__file__), 'minigames')
+        # Caminho para a pasta de minigames no diretório do usuário
+        user_minigames_path = os.path.expanduser("~/.pet_game/minigames")
 
-        # Verifica se o minijogo usa Pygame ou PyQt
+        # Tenta adicionar os caminhos ao sys.path se ainda não estiverem lá
+        if local_minigames_path not in sys.path:
+            sys.path.append(local_minigames_path)
+        if user_minigames_path not in sys.path:
+            sys.path.append(user_minigames_path)
+
+        # Primeiro tenta carregar do diretório local, depois do diretório do usuário
+        try:
+            game_module_path = f"{game_file[:-3]}"
+            game_module = __import__(game_module_path, fromlist=[""])
+        except ModuleNotFoundError:
+            QMessageBox.warning(self, "Erro", f"O módulo {game_file} não foi encontrado em nenhum dos diretórios.")
+            return
+
+        # Obtém a classe do jogo e cria uma instância
+        game_class = getattr(game_module, game_class_name)
+        game_instance = game_class()
+
+        # Verifica se o jogo usa PyQt ou Pygame
         if hasattr(game_instance, "exec_"):  # Minijogo baseado em PyQt
             game_instance.exec_()
             score = game_instance.score
         elif hasattr(game_instance, "run"):  # Minijogo baseado em Pygame
             score = game_instance.run()
 
-        # Calcula o XP com base no intervalo
+        # Calcula as recompensas
         if xp_reward_interval:
             points_per_xp = xp_reward_interval["points"]
             xp_per_interval = xp_reward_interval["xp"]
@@ -431,7 +426,6 @@ class PetGameModule(QDialog):
         else:
             xp_reward = 0
 
-        # Calcula as moedas com base no intervalo
         if coin_reward_interval:
             points_per_coin = coin_reward_interval["points"]
             coins_per_interval = coin_reward_interval["coins"]
