@@ -34,6 +34,7 @@ from export_module import (
 from stats_module import StatsWidget  # Certifique-se de que StatsWidget está disponível
 from day_notes_dialog import DayNotesDialog  # Novo módulo
 from kanban_tab import KanbanTab
+from mind_map_tab import MindMapTab  # Importando a aba do editor de texto
 
 
 # --------------------------------------------------
@@ -181,14 +182,21 @@ class CalendarApp(QMainWindow):
         self.init_pet_game_tab()
          # Adiciona a aba Kanban
         self.init_kanban_tab() 
+            
+           # Adiciona a aba do Editor de Texto
+        self.init_mind_map_tab()  # Adicionando a aba do editor de texto
+        
         # Configuração do menu
         self.init_menu()
-
+        
         # Atualiza o calendário inicialmente
         self.refresh_calendar()
     
 
-    
+    def init_mind_map_tab(self):
+        """Adiciona a aba do Editor de Texto."""
+        mind_map_tab = MindMapTab(self)  # Inicializa a aba do editor de texto
+        self.tabs.addTab(mind_map_tab, "Editor de Texto")  # Adiciona a aba ao QTabWidget
 
     def init_calendar_tab(self):
         """Configura a aba do calendário."""
