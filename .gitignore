@@ -33,3 +33,13 @@ var/
 *.log
 *.tmp
 
+# Ignorar arquivos AppImage
+MyApp-x86_64.AppImage
+appimagetool-x86_64.AppImage
+
+# Ignorar o diretório MyApp e todo o seu conteúdo
+MyApp/
+
+# Ignorar o arquivo de códigos de recuperação do GitHub
+github-recovery-codes.txt
+
