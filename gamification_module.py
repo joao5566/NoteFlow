@@ -20,7 +20,7 @@ from PyQt5.QtGui import QColor, QPainter, QBrush, QPen, QFont, QPolygon, QIcon, 
 from shop_module import load_shop_items, ShopModule  # Importando diretamente o que é necessário da shop_module
 from cheat_menu import CheatMenu
 from drawing_utils import draw_shape
-
+from minigames_registry import get_minigames
 
 DB_PATH = 'pet_game.db'
 
@@ -331,7 +331,9 @@ class PetGameModule(QDialog):
         self.games_tab = QWidget()
         layout = QVBoxLayout(self.games_tab)
 
-        minigames = load_minigames()  # Carrega os minigames dinamicamente
+        #minigames = load_minigames()  # Carrega os minigames dinamicamente
+         # Carrega os minijogos
+        minigames = get_minigames()
 
         # Criar a área de rolagem
         scroll_area = QScrollArea()
@@ -433,32 +435,8 @@ class PetGameModule(QDialog):
 
     
     def open_game(self, game):
-        game_file = game["file"]
-        game_class_name = game["class"]
-        xp_reward_interval = game.get("xp_reward_interval", None)
-        coin_reward_interval = game.get("coin_reward_interval", None)
-
-        # Caminho para a pasta local de minigames
-        local_minigames_path = os.path.join(os.path.dirname(__file__), 'minigames')
-        # Caminho para a pasta de minigames no diretório do usuário
-        user_minigames_path = os.path.expanduser("~/.pet_game/minigames")
-
-        # Tenta adicionar os caminhos ao sys.path se ainda não estiverem lá
-        if local_minigames_path not in sys.path:
-            sys.path.append(local_minigames_path)
-        if user_minigames_path not in sys.path:
-            sys.path.append(user_minigames_path)
-
-        # Primeiro tenta carregar do diretório local, depois do diretório do usuário
-        try:
-            game_module_path = f"{game_file[:-3]}"
-            game_module = __import__(game_module_path, fromlist=[""])
-        except ModuleNotFoundError:
-            QMessageBox.warning(self, "Erro", f"O módulo {game_file} não foi encontrado em nenhum dos diretórios.")
-            return
-
-        # Obtém a classe do jogo e cria uma instância
-        game_class = getattr(game_module, game_class_name)
+        # Acessa diretamente a classe do jogo do registro
+        game_class = game["class"]
         game_instance = game_class()
 
         # Verifica se o jogo usa PyQt ou Pygame
@@ -469,6 +447,9 @@ class PetGameModule(QDialog):
             score = game_instance.run()
 
         # Calcula as recompensas
+        xp_reward_interval = game.get("xp_reward_interval", None)
+        coin_reward_interval = game.get("coin_reward_interval", None)
+
         if xp_reward_interval:
             points_per_xp = xp_reward_interval["points"]
             xp_per_interval = xp_reward_interval["xp"]

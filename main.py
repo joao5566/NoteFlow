@@ -504,6 +504,7 @@ def main():
     """Função principal para iniciar o aplicativo."""
     app = QApplication(sys.argv)
     window = CalendarApp()
+    app.setStyle("Fusion")
     window.show()
     sys.exit(app.exec_())
 
