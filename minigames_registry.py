@@ -4,9 +4,9 @@ from minigames.block_stack import BlockStack
 from minigames.cpp_idle_clicker import ProgrammingClickerGame
 from minigames.defender import DefesaDasFormas
 from minigames.flappy import FlappyPetGame
-from minigames.memory import MemoryGame as MemoryGame
+from minigames.memory import MemoryGame1 as MemoryGame1
 from minigames.memory_game import MemoryGame as MemoryGame
-from minigames.plat import CatchTheFallingObjects
+
 from minigames.pong import PongGame
 from minigames.simple_clicker_game import SimpleClickerGame
 from minigames.snake_game import SnakeGame
@@ -54,7 +54,7 @@ def get_minigames():
             "id": "memory_1",
             "name": "Jogo da memória",
             "file": "memory.py",
-            "class": MemoryGame,
+            "class": MemoryGame1,
             "icon": "game_icons/memory1.png",
             "xp_reward_interval": {"points": 10, "xp": 1},
             "coin_reward_interval": {"points": 10, "coins": 1},
@@ -67,15 +67,6 @@ def get_minigames():
             "icon": "game_icons/memori.png",
             "xp_reward_interval": {"points": 1, "xp": 1},
             "coin_reward_interval": {"points": 2, "coins": 1},
-        },
-        {
-            "id": "forma_tower",
-            "name": "Chuva de círculos",
-            "file": "plat.py",
-            "class": CatchTheFallingObjects,
-            "icon": "game_icons/pat.png",
-            "xp_reward_interval": {"points": 1, "xp": 1},
-            "coin_reward_interval": {"points": 1, "coins": 1},
         },
         {
             "id": "pong",

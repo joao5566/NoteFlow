@@ -2,7 +2,7 @@ import pygame
 import random
 import time
 
-class MemoryGame:
+class MemoryGame1:
     def __init__(self):
         pygame.init()
         # Tela cheia
