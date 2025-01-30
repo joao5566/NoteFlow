@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
     QPushButton, QLabel, QWidget, QTabWidget, QInputDialog, QMessageBox,
     QLineEdit, QComboBox, QFileDialog, QCalendarWidget, QDialog, QTextEdit,
-    QColorDialog, QScrollArea, QCheckBox, QToolButton, QMenu, QAction, QMenuBar,
+    QColorDialog, QScrollArea, QCheckBox, QToolButton, QAction, QMenu, QMenuBar,
     QTextBrowser
 )
 from PyQt5.QtCore import Qt, QDate, QMimeData, QSize, pyqtSignal
@@ -35,209 +35,228 @@ class DatabaseManager:
     """Gerenciador de banco de dados SQLite para o aplicativo Kanban."""
 
     def __init__(self, db_name="kanban.db"):
-        self.conn = sqlite3.connect(db_name)
+        self.db_name = db_name
         self.create_tables()
 
+    def connect(self):
+        return sqlite3.connect(self.db_name)
+
     def create_tables(self):
-        cursor = self.conn.cursor()
-        # Tabela de quadros
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS boards (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
-            )
-        """)
-        # Tabela de colunas
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS columns (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                board_id INTEGER,
-                name TEXT NOT NULL,
-                UNIQUE(board_id, name),
-                FOREIGN KEY(board_id) REFERENCES boards(id) ON DELETE CASCADE
-            )
-        """)
-        # Tabela de tarefas
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                column_id INTEGER,
-                description TEXT NOT NULL,
-                priority TEXT,
-                due_date TEXT,
-                color TEXT,
-                text_color TEXT,
-                FOREIGN KEY(column_id) REFERENCES columns(id) ON DELETE CASCADE
-            )
-        """)
-        # Tabela de checklists
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS checklists (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id INTEGER,
-                item TEXT,
-                checked BOOLEAN,
-                FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
-            )
-        """)
-        self.conn.commit()
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            # Tabela de quadros
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS boards (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                )
+            """)
+            # Tabela de colunas
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS columns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    board_id INTEGER,
+                    name TEXT NOT NULL,
+                    UNIQUE(board_id, name),
+                    FOREIGN KEY(board_id) REFERENCES boards(id) ON DELETE CASCADE
+                )
+            """)
+            # Tabela de tarefas
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    column_id INTEGER,
+                    description TEXT NOT NULL,
+                    priority TEXT,
+                    due_date TEXT,
+                    color TEXT,
+                    text_color TEXT,
+                    FOREIGN KEY(column_id) REFERENCES columns(id) ON DELETE CASCADE
+                )
+            """)
+            # Tabela de checklists
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS checklists (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER,
+                    item TEXT,
+                    checked BOOLEAN,
+                    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+                )
+            """)
+            conn.commit()
 
     def add_board(self, name):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("INSERT INTO boards (name) VALUES (?)", (name,))
-            self.conn.commit()
-            return cursor.lastrowid
-        except sqlite3.IntegrityError:
-            return None  # Quadro já existe
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO boards (name) VALUES (?)", (name,))
+                conn.commit()
+                return cursor.lastrowid
+            except sqlite3.IntegrityError:
+                return None  # Quadro já existe
 
     def remove_board(self, board_id):
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM boards WHERE id = ?", (board_id,))
-        self.conn.commit()
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM boards WHERE id = ?", (board_id,))
+            conn.commit()
 
     def get_board_id(self, name):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id FROM boards WHERE name = ?", (name,))
-        result = cursor.fetchone()
-        return result[0] if result else None
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM boards WHERE name = ?", (name,))
+            result = cursor.fetchone()
+            return result[0] if result else None
 
     def get_boards(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id, name FROM boards")
-        return cursor.fetchall()
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, name FROM boards")
+            return cursor.fetchall()
 
     def add_column(self, board_id, name):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("""
-                INSERT INTO columns (board_id, name) VALUES (?, ?)
-            """, (board_id, name))
-            self.conn.commit()
-            return cursor.lastrowid
-        except sqlite3.IntegrityError:
-            return None  # Coluna já existe no quadro
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO columns (board_id, name) VALUES (?, ?)
+                """, (board_id, name))
+                conn.commit()
+                return cursor.lastrowid
+            except sqlite3.IntegrityError:
+                return None  # Coluna já existe no quadro
 
     def remove_column(self, column_id):
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM columns WHERE id = ?", (column_id,))
-        self.conn.commit()
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM columns WHERE id = ?", (column_id,))
+            conn.commit()
 
     def get_columns(self, board_id):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT id, name FROM columns WHERE board_id = ?
-        """, (board_id,))
-        return cursor.fetchall()
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name FROM columns WHERE board_id = ?
+            """, (board_id,))
+            return cursor.fetchall()
 
     def add_task(self, column_id, description, priority, due_date, color, text_color):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO tasks (column_id, description, priority, due_date, color, text_color)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (column_id, description, priority, due_date, color, text_color))
-        task_id = cursor.lastrowid
-        self.conn.commit()
-        return task_id
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tasks (column_id, description, priority, due_date, color, text_color)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (column_id, description, priority, due_date, color, text_color))
+            task_id = cursor.lastrowid
+            conn.commit()
+            return task_id
 
     def add_checklist_item(self, task_id, item, checked=False):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            INSERT INTO checklists (task_id, item, checked)
-            VALUES (?, ?, ?)
-        """, (task_id, item, checked))
-        self.conn.commit()
-
-    def get_tasks_by_column(self, column_id):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT id, description, priority, due_date, color, text_color FROM tasks
-            WHERE column_id = ?
-        """, (column_id,))
-        tasks = cursor.fetchall()
-        task_list = []
-        for task in tasks:
-            task_id, description, priority, due_date, color, text_color = task
-            # Obter itens de checklist
-            cursor.execute("""
-                SELECT item, checked FROM checklists
-                WHERE task_id = ?
-            """, (task_id,))
-            checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
-            task_list.append({
-                'id': task_id,
-                'description': description,
-                'priority': priority,
-                'due_date': due_date,
-                'color': color,
-                'text_color': text_color,
-                'checklist': checklist
-            })
-        return task_list
-
-    def get_task(self, task_id):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            SELECT id, description, priority, due_date, color, text_color FROM tasks
-            WHERE id = ?
-        """, (task_id,))
-        task = cursor.fetchone()
-        if task:
-            task_id, description, priority, due_date, color, text_color = task
-            # Obter itens de checklist
-            cursor.execute("""
-                SELECT item, checked FROM checklists
-                WHERE task_id = ?
-            """, (task_id,))
-            checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
-            return {
-                'id': task_id,
-                'description': description,
-                'priority': priority,
-                'due_date': due_date,
-                'color': color,
-                'text_color': text_color,
-                'checklist': checklist
-            }
-        return None
-
-    def update_task(self, task_id, description, priority, due_date, color, text_color):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE tasks
-            SET description = ?, priority = ?, due_date = ?, color = ?, text_color = ?
-            WHERE id = ?
-        """, (description, priority, due_date, color, text_color, task_id))
-        self.conn.commit()
-
-    def update_task_column(self, task_id, new_column_id):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE tasks
-            SET column_id = ?
-            WHERE id = ?
-        """, (new_column_id, task_id))
-        self.conn.commit()
-
-    def delete_task(self, task_id):
-        cursor = self.conn.cursor()
-        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-        self.conn.commit()
-
-    def update_checklist(self, task_id, checklist):
-        cursor = self.conn.cursor()
-        # Remover todos os itens de checklist existentes para a tarefa
-        cursor.execute("DELETE FROM checklists WHERE task_id = ?", (task_id,))
-        # Adicionar os novos itens de checklist
-        for item in checklist:
+        with self.connect() as conn:
+            cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO checklists (task_id, item, checked)
                 VALUES (?, ?, ?)
-            """, (task_id, item['item'], item['checked']))
-        self.conn.commit()
+            """, (task_id, item, checked))
+            conn.commit()
+
+    def get_tasks_by_column(self, column_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, description, priority, due_date, color, text_color FROM tasks
+                WHERE column_id = ?
+            """, (column_id,))
+            tasks = cursor.fetchall()
+            task_list = []
+            for task in tasks:
+                task_id, description, priority, due_date, color, text_color = task
+                # Obter itens de checklist
+                cursor.execute("""
+                    SELECT item, checked FROM checklists
+                    WHERE task_id = ?
+                """, (task_id,))
+                checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
+                task_list.append({
+                    'id': task_id,
+                    'description': description,
+                    'priority': priority,
+                    'due_date': due_date,
+                    'color': color,
+                    'text_color': text_color,
+                    'checklist': checklist
+                })
+            return task_list
+
+    def get_task(self, task_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, description, priority, due_date, color, text_color FROM tasks
+                WHERE id = ?
+            """, (task_id,))
+            task = cursor.fetchone()
+            if task:
+                task_id, description, priority, due_date, color, text_color = task
+                # Obter itens de checklist
+                cursor.execute("""
+                    SELECT item, checked FROM checklists
+                    WHERE task_id = ?
+                """, (task_id,))
+                checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
+                return {
+                    'id': task_id,
+                    'description': description,
+                    'priority': priority,
+                    'due_date': due_date,
+                    'color': color,
+                    'text_color': text_color,
+                    'checklist': checklist
+                }
+            return None
+
+    def update_task(self, task_id, description, priority, due_date, color, text_color):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE tasks
+                SET description = ?, priority = ?, due_date = ?, color = ?, text_color = ?
+                WHERE id = ?
+            """, (description, priority, due_date, color, text_color, task_id))
+            conn.commit()
+
+    def update_task_column(self, task_id, new_column_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE tasks
+                SET column_id = ?
+                WHERE id = ?
+            """, (new_column_id, task_id))
+            conn.commit()
+
+    def delete_task(self, task_id):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            conn.commit()
+
+    def update_checklist(self, task_id, checklist):
+        with self.connect() as conn:
+            cursor = conn.cursor()
+            # Remover todos os itens de checklist existentes para a tarefa
+            cursor.execute("DELETE FROM checklists WHERE task_id = ?", (task_id,))
+            # Adicionar os novos itens de checklist
+            for item in checklist:
+                cursor.execute("""
+                    INSERT INTO checklists (task_id, item, checked)
+                    VALUES (?, ?, ?)
+                """, (task_id, item['item'], item['checked']))
+            conn.commit()
 
     def close(self):
-        self.conn.close()
+        pass  # Usando gerenciadores de contexto, não é necessário fechar explicitamente
 
 
 class TaskWidget(QWidget):
@@ -313,10 +332,21 @@ class TaskWidget(QWidget):
         self.edit_button.clicked.connect(self.confirm_edit)
         buttons_layout.addWidget(self.edit_button)
 
-        # Botão "Excluir"
+        # Botão "Excluir" com "X" textual
         self.delete_button = QToolButton()
-        self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
+        self.delete_button.setText("✖")  # Usando um símbolo 'X' elegante
         self.delete_button.setToolTip("Excluir Tarefa")
+        self.delete_button.setStyleSheet("""
+            QToolButton {
+                border: none;
+                color: red;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            QToolButton:hover {
+                color: darkred;
+            }
+        """)
         self.delete_button.clicked.connect(self.confirm_delete)
         buttons_layout.addWidget(self.delete_button)
 
@@ -671,8 +701,19 @@ class KanbanBoard(QWidget):
 
         # Botão para excluir a coluna
         delete_column_button = QToolButton()
-        delete_column_button.setIcon(QIcon.fromTheme("edit-delete"))
+        delete_column_button.setText("✖")  # Usando um símbolo 'X' elegante
         delete_column_button.setToolTip(f"Excluir Coluna '{title}'")
+        delete_column_button.setStyleSheet("""
+            QToolButton {
+                border: none;
+                color: red;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            QToolButton:hover {
+                color: darkred;
+            }
+        """)
         delete_column_button.clicked.connect(lambda: self.remove_column(title, column_id))
         header_layout.addWidget(delete_column_button)
 
@@ -1007,12 +1048,7 @@ class KanbanBoard(QWidget):
                 task_widget.update_text_color(text_color)
 
                 # Atualizar checklist
-                while task_widget.checklist_layout.count():
-                    child = task_widget.checklist_layout.takeAt(0)
-                    if child.widget():
-                        child.widget().deleteLater()
-                task_widget.checklist_widgets.clear()
-
+                task_widget.clear_checklist()
                 for chk in checklist:
                     cb = QCheckBox(chk['item'])
                     cb.setChecked(chk['checked'])
@@ -1039,6 +1075,14 @@ class KanbanBoard(QWidget):
         dialog.exec_()
 
     def manage_checklist(self, dialog, current_checklist=None):
+        """
+        Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
+        Retorna a lista atualizada de checklists.
+        """
+        # Função consolidada já presente acima
+        return self.manage_checklist_subdialog(dialog, current_checklist)
+
+    def manage_checklist_subdialog(self, dialog, current_checklist=None):
         """
         Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
         Retorna a lista atualizada de checklists.
@@ -1102,246 +1146,92 @@ class KanbanBoard(QWidget):
         else:
             return current_checklist
 
-    def edit_task_dialog(self, task_list_widget, task_widget, list_item):
-        """Abre o diálogo de edição para uma tarefa específica."""
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Editar Tarefa")
-        dialog.resize(600, 800)  # Permitir redimensionamento inicial
-        layout = QVBoxLayout(dialog)
-
-        # Descrição da Tarefa
-        description_label = QLabel("Descrição da Tarefa:")
-        description_label.setFont(self.default_font)
-        layout.addWidget(description_label)
-
-        description_input = QTextEdit()
-        description_input.setPlainText(task_widget.description)
-        description_input.setFont(self.default_font)
-        layout.addWidget(description_input)
-
-        # Prioridade
-        priority_label = QLabel("Prioridade:")
-        priority_label.setFont(self.default_font)
-        layout.addWidget(priority_label)
-
-        priority_selector = QComboBox()
-        priority_selector.addItems(["Alta", "Média", "Baixa"])
-        priority_selector.setCurrentText(task_widget.priority)
-        priority_selector.setFont(self.default_font)
-        layout.addWidget(priority_selector)
-
-        # Prazo
-        due_date_label = QLabel("Prazo:")
-        due_date_label.setFont(self.default_font)
-        layout.addWidget(due_date_label)
-
-        calendar = QCalendarWidget()
-        calendar.setSelectedDate(QDate.fromString(task_widget.due_date, "yyyy-MM-dd"))
-        calendar.setFont(self.default_font)
-        layout.addWidget(calendar)
-
-        # Cor de Fundo
-        color_label = QLabel("Cor de Fundo da Tarefa:")
-        color_label.setFont(self.default_font)
-        layout.addWidget(color_label)
-
-        color_button = QPushButton("Selecionar Cor")
-        color_button.setStyleSheet(f"background-color: {task_widget.color};")
-        color_button.setFont(self.default_font)
-        layout.addWidget(color_button)
-
-        # Cor do Texto
-        text_color_label = QLabel("Cor do Texto da Tarefa:")
-        text_color_label.setFont(self.default_font)
-        layout.addWidget(text_color_label)
-
-        text_color_button = QPushButton("Selecionar Cor do Texto")
-        text_color_button.setStyleSheet(f"color: {task_widget.text_color};")
-        text_color_button.setFont(self.default_font)
-        layout.addWidget(text_color_button)
-
-        # Checklist
-        checklist_label = QLabel("Checklist:")
-        checklist_label.setFont(self.default_font)
-        layout.addWidget(checklist_label)
-
-        manage_checklist_button = QPushButton("Gerenciar Checklist")
-        manage_checklist_button.setFont(self.default_font)
-        layout.addWidget(manage_checklist_button)
-
-        # Layout para Botões de Ação
-        buttons_layout = QHBoxLayout()
-
-        save_button = QPushButton("Salvar")
-        save_button.setFont(self.default_font)
-        buttons_layout.addWidget(save_button)
-
-        cancel_button = QPushButton("Cancelar")
-        cancel_button.setFont(self.default_font)
-        buttons_layout.addWidget(cancel_button)
-
-        layout.addLayout(buttons_layout)
-
-        selected_color = task_widget.color
-        selected_text_color = task_widget.text_color
-        current_checklist = task_widget.checklist.copy()
-
-        def select_color():
-            nonlocal selected_color
-            color = QColorDialog.getColor()
-            if color.isValid():
-                selected_color = color.name()
-                color_button.setStyleSheet(f"background-color: {selected_color};")
-
-        def select_text_color():
-            nonlocal selected_text_color
-            color = QColorDialog.getColor()
-            if color.isValid():
-                selected_text_color = color.name()
-                text_color_button.setStyleSheet(f"color: {selected_text_color};")
-
-        def manage_checklist_action():
-            nonlocal current_checklist
-            updated_checklist = self.manage_checklist(dialog, current_checklist)
-            if updated_checklist is not None:
-                current_checklist = updated_checklist
-
-        color_button.clicked.connect(select_color)
-        text_color_button.clicked.connect(select_text_color)
-        manage_checklist_button.clicked.connect(manage_checklist_action)
-
-        def save_task_action():
-            description = description_input.toPlainText().strip()
-            priority = priority_selector.currentText()
-            due_date = calendar.selectedDate().toString("yyyy-MM-dd")
-            color = selected_color
-            text_color = selected_text_color
-            checklist = current_checklist
-            if description:
-                # Atualizar no banco de dados
-                task_id = task_widget.task_id
-                self.db.update_task(task_id, description, priority, due_date, color, text_color)
-                self.db.update_checklist(task_id, checklist)
-
-                # Atualizar a UI
-                task_widget.description = description
-                task_widget.priority = priority
-                task_widget.due_date = due_date
-                task_widget.color = color
-                task_widget.text_color = text_color
-                task_widget.checklist = checklist
-
-                task_widget.set_description(description)  # Atualizar a descrição renderizada
-
-                task_widget.priority_label.setText(f"Prioridade: {priority}")
-                task_widget.due_date_label.setText(f"Prazo: {due_date}")
-                task_widget.update_color()
-                task_widget.update_text_color(text_color)
-
-                # Atualizar checklist
-                while task_widget.checklist_layout.count():
-                    child = task_widget.checklist_layout.takeAt(0)
-                    if child.widget():
-                        child.widget().deleteLater()
-                task_widget.checklist_widgets.clear()
-
-                for chk in checklist:
-                    cb = QCheckBox(chk['item'])
-                    cb.setChecked(chk['checked'])
-                    cb.setFont(self.default_font)
-                    cb.setStyleSheet(f"color: {task_widget.text_color};")
-                    cb.stateChanged.connect(task_widget.update_checklist_status)
-                    task_widget.checklist_layout.addWidget(cb)
-                    task_widget.checklist_widgets.append(cb)
-
-                # Atualizar o tamanho do item
-                list_item.setSizeHint(task_widget.sizeHint())
-
-                dialog.accept()
-            else:
-                QMessageBox.warning(dialog, "Aviso", "Descrição da tarefa não pode estar vazia.")
-
-        def cancel_action():
-            dialog.reject()
-
-        save_button.clicked.connect(save_task_action)
-        cancel_button.clicked.connect(cancel_action)
-
-        dialog.setLayout(layout)
-        dialog.exec_()
-
     def export_tasks(self):
         """Implementação opcional de exportação para CSV."""
         # Exemplo básico de exportação de tarefas para CSV
         filename, _ = QFileDialog.getSaveFileName(self, "Exportar Tarefas", "", "CSV Files (*.csv)")
         if filename:
-            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["ID", "Descrição", "Prioridade", "Prazo", "Cor", "Cor do Texto", "Checklist"])
-                for column in self.columns.values():
-                    task_list = column["list"]
-                    for i in range(task_list.count()):
-                        item = task_list.item(i)
-                        task_widget = task_list.itemWidget(item)
-                        if task_widget:
-                            checklist_str = "; ".join([f"{chk['item']} [{'X' if chk['checked'] else ' '}]"
-                                                       for chk in task_widget.checklist])
-                            writer.writerow([
-                                task_widget.task_id,
-                                task_widget.description,
-                                task_widget.priority,
-                                task_widget.due_date,
-                                task_widget.color,
-                                task_widget.text_color,
-                                checklist_str
-                            ])
-            QMessageBox.information(self, "Sucesso", "Tarefas exportadas com sucesso!")
+            try:
+                with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(["ID", "Descrição", "Prioridade", "Prazo", "Cor", "Cor do Texto", "Checklist"])
+                    for column in self.columns.values():
+                        task_list = column["list"]
+                        for i in range(task_list.count()):
+                            item = task_list.item(i)
+                            task_widget = task_list.itemWidget(item)
+                            if task_widget:
+                                checklist_str = "; ".join([f"{chk['item']} [{'X' if chk['checked'] else ' '}]"
+                                                           for chk in task_widget.checklist])
+                                writer.writerow([
+                                    task_widget.task_id,
+                                    task_widget.description,
+                                    task_widget.priority,
+                                    task_widget.due_date,
+                                    task_widget.color,
+                                    task_widget.text_color,
+                                    checklist_str
+                                ])
+                QMessageBox.information(self, "Sucesso", "Tarefas exportadas com sucesso!")
+            except Exception as e:
+                QMessageBox.critical(self, "Erro", f"Falha ao exportar tarefas: {e}")
 
     def import_tasks(self):
         """Implementação opcional de importação de CSV."""
         filename, _ = QFileDialog.getOpenFileName(self, "Importar Tarefas", "", "CSV Files (*.csv)")
         if filename:
-            with open(filename, 'r', newline='', encoding='utf-8') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    description = row["Descrição"]
-                    priority = row["Prioridade"]
-                    due_date = row["Prazo"]
-                    color = row["Cor"]
-                    text_color = row["Cor do Texto"]
-                    checklist_str = row["Checklist"]
-                    # Processar checklist
-                    checklist = []
-                    if checklist_str:
-                        items = checklist_str.split("; ")
-                        for item in items:
-                            if "[X]" in item:
-                                chk_item = item.replace("[X]", "").strip()
-                                checked = True
-                            else:
-                                chk_item = item.replace("[ ]", "").strip()
-                                checked = False
-                            checklist.append({'item': chk_item, 'checked': checked})
-                    # Adicionar a tarefa à primeira coluna disponível
-                    if self.columns:
-                        first_column = next(iter(self.columns.values()))
-                        column_id = first_column["id"]
-                        task_id = self.db.add_task(column_id, description, priority, due_date, color, text_color)
-                        for chk in checklist:
-                            self.db.add_checklist_item(task_id, chk['item'], chk['checked'])
-                        # Atualizar a UI
-                        first_column["list"].add_task_from_db({
-                            'id': task_id,
-                            'description': description,
-                            'priority': priority,
-                            'due_date': due_date,
-                            'color': color,
-                            'text_color': text_color,
-                            'checklist': checklist
-                        })
-            QMessageBox.information(self, "Sucesso", "Tarefas importadas com sucesso!")
+            try:
+                with open(filename, 'r', newline='', encoding='utf-8') as csvfile:
+                    reader = csv.DictReader(csvfile)
+                    for row in reader:
+                        description = row.get("Descrição", "").strip()
+                        priority = row.get("Prioridade", "").strip()
+                        due_date = row.get("Prazo", "").strip()
+                        color = row.get("Cor", "#ccffcc").strip()
+                        text_color = row.get("Cor do Texto", "#000000").strip()
+                        checklist_str = row.get("Checklist", "").strip()
+                        # Processar checklist
+                        checklist = []
+                        if checklist_str:
+                            items = checklist_str.split("; ")
+                            for item in items:
+                                if "[X]" in item:
+                                    chk_item = item.replace("[X]", "").strip()
+                                    checked = True
+                                else:
+                                    chk_item = item.replace("[ ]", "").strip()
+                                    checked = False
+                                checklist.append({'item': chk_item, 'checked': checked})
+                        # Adicionar a tarefa à primeira coluna disponível
+                        if self.columns:
+                            first_column = next(iter(self.columns.values()))
+                            column_id = first_column["id"]
+                            task_id = self.db.add_task(column_id, description, priority, due_date, color, text_color)
+                            for chk in checklist:
+                                self.db.add_checklist_item(task_id, chk['item'], chk['checked'])
+                            # Atualizar a UI
+                            first_column["list"].add_task_from_db({
+                                'id': task_id,
+                                'description': description,
+                                'priority': priority,
+                                'due_date': due_date,
+                                'color': color,
+                                'text_color': text_color,
+                                'checklist': checklist
+                            })
+                QMessageBox.information(self, "Sucesso", "Tarefas importadas com sucesso!")
+            except Exception as e:
+                QMessageBox.critical(self, "Erro", f"Falha ao importar tarefas: {e}")
 
     def manage_checklist(self, dialog, current_checklist=None):
+        """
+        Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
+        Retorna a lista atualizada de checklists.
+        """
+        # Função consolidada já presente acima
+        return self.manage_checklist_subdialog(dialog, current_checklist)
+
+    def manage_checklist_subdialog(self, dialog, current_checklist=None):
         """
         Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
         Retorna a lista atualizada de checklists.
@@ -1457,19 +1347,17 @@ class KanbanTab(QWidget):
             # Adicionar um quadro Kanban padrão ao iniciar
             name = "Meu Quadro Kanban"
             # Verificar se já existe um quadro com esse nome
-            for i in range(self.kanban_tabs.count()):
-                if self.kanban_tabs.tabText(i) == name:
-                    return
+            if any(self.kanban_tabs.tabText(i) == name for i in range(self.kanban_tabs.count())):
+                return
         else:
             name, ok = QInputDialog.getText(self, "Novo Quadro Kanban", "Nome do Quadro Kanban:")
             if not (ok and name.strip()):
                 return
             name = name.strip()
             # Verificar se o nome já existe
-            for i in range(self.kanban_tabs.count()):
-                if self.kanban_tabs.tabText(i) == name:
-                    QMessageBox.warning(self, "Aviso", f"O quadro '{name}' já existe.")
-                    return
+            if any(self.kanban_tabs.tabText(i) == name for i in range(self.kanban_tabs.count())):
+                QMessageBox.warning(self, "Aviso", f"O quadro '{name}' já existe.")
+                return
 
         kanban_board = KanbanBoard(name)
         self.kanban_tabs.addTab(kanban_board, name)

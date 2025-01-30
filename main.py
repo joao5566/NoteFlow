@@ -495,10 +495,7 @@ class CalendarApp(QMainWindow):
     # Métodos de Estatísticas
     # ------------------------------
 
-    def view_stats(self):
-        """Exibe as estatísticas (não está sendo usado atualmente)."""
-        dialog = StatsDialog(self)
-        dialog.exec_()
+    
 
 # --------------------------------------------------
 # Ponto de Entrada do Aplicativo
