@@ -433,7 +433,13 @@ class TaskWidget(QWidget):
             if parent_list and isinstance(parent_list, TaskListWidget):
                 parent_list.delete_task(self.task_id)
 
-
+    def clear_checklist(self):
+        """Remove todos os itens de checklist do layout."""
+        while self.checklist_layout.count():
+            child = self.checklist_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        self.checklist_widgets = []
 class TaskListWidget(QListWidget):
     """Lista de tarefas dentro de uma coluna Kanban."""
 

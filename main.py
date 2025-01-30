@@ -118,7 +118,7 @@ class CalendarApp(QMainWindow):
         # Configuração da interface e tema
         self.init_ui()
         self.apply_global_theme()
-        show_random_motivation(self)
+        #show_random_motivation(self)
 
         # Configuração do timer para lembretes
         self.reminder_timer = QTimer(self)
@@ -214,10 +214,7 @@ class CalendarApp(QMainWindow):
         self.search_input.textChanged.connect(self.search_notes)
         self.controls_layout.addWidget(self.search_input)
 
-        # Botão para definir lembrete
-        self.reminder_button = QPushButton(QIcon("icons/reminder.png"), "Definir Lembrete", self)
-        self.reminder_button.clicked.connect(self.open_reminder_dialog)
-        self.controls_layout.addWidget(self.reminder_button)
+        ##
 
         # Seletor de mês
         self.month_selector = QComboBox(self)
