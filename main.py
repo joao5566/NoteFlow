@@ -34,6 +34,7 @@ from export_module import (
 from stats_module import StatsWidget  # Certifique-se de que StatsWidget está disponível
 from day_notes_dialog import DayNotesDialog  # Novo módulo
 from kanban_tab import KanbanTab
+
 from mind_map_tab import MindMapTab  # Importando a aba do editor de texto
 
 
@@ -271,7 +272,10 @@ class CalendarApp(QMainWindow):
     def init_kanban_tab(self):
         """Adiciona a aba Kanban ao QTabWidget."""
         self.kanban_tab = KanbanTab(self)
+        #self.kanban_tab = KanbanTab("Meu Quadro Kanban")
         self.tabs.addTab(self.kanban_tab, "Kanban")
+    
+    
 
     def init_excel_tab(self):
         """Configura a aba da planilha simples."""

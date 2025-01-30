@@ -3,23 +3,257 @@
 import sys
 import csv
 import json
-from datetime import datetime
+import sqlite3
+import markdown  # Biblioteca para converter Markdown em HTML
 from PyQt5.QtWidgets import (
     QApplication, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
     QPushButton, QLabel, QWidget, QTabWidget, QInputDialog, QMessageBox,
-    QLineEdit, QComboBox, QMenuBar, QMenu, QAction, QFileDialog, QCalendarWidget,
-    QDialog, QTextEdit, QColorDialog, QScrollArea
+    QLineEdit, QComboBox, QFileDialog, QCalendarWidget, QDialog, QTextEdit,
+    QColorDialog, QScrollArea, QCheckBox, QToolButton, QMenu, QAction, QMenuBar,
+    QTextBrowser
 )
-from PyQt5.QtCore import Qt, QDate, QMimeData, QSize
-from PyQt5.QtGui import QFont, QColor, QDrag, QPixmap, QIcon
+from PyQt5.QtCore import Qt, QDate, QMimeData, QSize, pyqtSignal
+from PyQt5.QtGui import QFont, QDrag, QPixmap, QIcon
+
+
+class ClickableTextBrowser(QTextBrowser):
+    """QTextBrowser que emite um sinal ao detectar um duplo clique."""
+
+    doubleClicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Definir cursor apropriado
+        self.setCursor(Qt.IBeamCursor)
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit()
+        super().mouseDoubleClickEvent(event)
+
+
+class DatabaseManager:
+    """Gerenciador de banco de dados SQLite para o aplicativo Kanban."""
+
+    def __init__(self, db_name="kanban.db"):
+        self.conn = sqlite3.connect(db_name)
+        self.create_tables()
+
+    def create_tables(self):
+        cursor = self.conn.cursor()
+        # Tabela de quadros
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS boards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL
+            )
+        """)
+        # Tabela de colunas
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS columns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                board_id INTEGER,
+                name TEXT NOT NULL,
+                UNIQUE(board_id, name),
+                FOREIGN KEY(board_id) REFERENCES boards(id) ON DELETE CASCADE
+            )
+        """)
+        # Tabela de tarefas
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                column_id INTEGER,
+                description TEXT NOT NULL,
+                priority TEXT,
+                due_date TEXT,
+                color TEXT,
+                text_color TEXT,
+                FOREIGN KEY(column_id) REFERENCES columns(id) ON DELETE CASCADE
+            )
+        """)
+        # Tabela de checklists
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS checklists (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER,
+                item TEXT,
+                checked BOOLEAN,
+                FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+        """)
+        self.conn.commit()
+
+    def add_board(self, name):
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("INSERT INTO boards (name) VALUES (?)", (name,))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None  # Quadro já existe
+
+    def remove_board(self, board_id):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM boards WHERE id = ?", (board_id,))
+        self.conn.commit()
+
+    def get_board_id(self, name):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id FROM boards WHERE name = ?", (name,))
+        result = cursor.fetchone()
+        return result[0] if result else None
+
+    def get_boards(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, name FROM boards")
+        return cursor.fetchall()
+
+    def add_column(self, board_id, name):
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO columns (board_id, name) VALUES (?, ?)
+            """, (board_id, name))
+            self.conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None  # Coluna já existe no quadro
+
+    def remove_column(self, column_id):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM columns WHERE id = ?", (column_id,))
+        self.conn.commit()
+
+    def get_columns(self, board_id):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, name FROM columns WHERE board_id = ?
+        """, (board_id,))
+        return cursor.fetchall()
+
+    def add_task(self, column_id, description, priority, due_date, color, text_color):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO tasks (column_id, description, priority, due_date, color, text_color)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (column_id, description, priority, due_date, color, text_color))
+        task_id = cursor.lastrowid
+        self.conn.commit()
+        return task_id
+
+    def add_checklist_item(self, task_id, item, checked=False):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO checklists (task_id, item, checked)
+            VALUES (?, ?, ?)
+        """, (task_id, item, checked))
+        self.conn.commit()
+
+    def get_tasks_by_column(self, column_id):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, description, priority, due_date, color, text_color FROM tasks
+            WHERE column_id = ?
+        """, (column_id,))
+        tasks = cursor.fetchall()
+        task_list = []
+        for task in tasks:
+            task_id, description, priority, due_date, color, text_color = task
+            # Obter itens de checklist
+            cursor.execute("""
+                SELECT item, checked FROM checklists
+                WHERE task_id = ?
+            """, (task_id,))
+            checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
+            task_list.append({
+                'id': task_id,
+                'description': description,
+                'priority': priority,
+                'due_date': due_date,
+                'color': color,
+                'text_color': text_color,
+                'checklist': checklist
+            })
+        return task_list
+
+    def get_task(self, task_id):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT id, description, priority, due_date, color, text_color FROM tasks
+            WHERE id = ?
+        """, (task_id,))
+        task = cursor.fetchone()
+        if task:
+            task_id, description, priority, due_date, color, text_color = task
+            # Obter itens de checklist
+            cursor.execute("""
+                SELECT item, checked FROM checklists
+                WHERE task_id = ?
+            """, (task_id,))
+            checklist = [{'item': row[0], 'checked': bool(row[1])} for row in cursor.fetchall()]
+            return {
+                'id': task_id,
+                'description': description,
+                'priority': priority,
+                'due_date': due_date,
+                'color': color,
+                'text_color': text_color,
+                'checklist': checklist
+            }
+        return None
+
+    def update_task(self, task_id, description, priority, due_date, color, text_color):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE tasks
+            SET description = ?, priority = ?, due_date = ?, color = ?, text_color = ?
+            WHERE id = ?
+        """, (description, priority, due_date, color, text_color, task_id))
+        self.conn.commit()
+
+    def update_task_column(self, task_id, new_column_id):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE tasks
+            SET column_id = ?
+            WHERE id = ?
+        """, (new_column_id, task_id))
+        self.conn.commit()
+
+    def delete_task(self, task_id):
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        self.conn.commit()
+
+    def update_checklist(self, task_id, checklist):
+        cursor = self.conn.cursor()
+        # Remover todos os itens de checklist existentes para a tarefa
+        cursor.execute("DELETE FROM checklists WHERE task_id = ?", (task_id,))
+        # Adicionar os novos itens de checklist
+        for item in checklist:
+            cursor.execute("""
+                INSERT INTO checklists (task_id, item, checked)
+                VALUES (?, ?, ?)
+            """, (task_id, item['item'], item['checked']))
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
 
 
 class TaskWidget(QWidget):
-    def __init__(self, description, priority, due_date, color="#ccffcc", text_color="#000000", parent=None, font=None):
+    """Representa uma única tarefa no Kanban."""
+
+    # Sinal para atualizar o checklist no banco de dados
+    checklist_changed = pyqtSignal(int, list)  # task_id, updated checklist
+
+    def __init__(self, task_id, description, priority, due_date, checklist=None,
+                 color="#ccffcc", text_color="#000000", parent=None, font=None):
         super().__init__(parent)
+        self.task_id = task_id  # ID da tarefa
         self.description = description
         self.priority = priority
         self.due_date = due_date
+        self.checklist = checklist if checklist is not None else []  # Lista de itens de checklist
         self.color = color  # Cor de fundo
         self.text_color = text_color  # Cor do texto
         self.font = font or QFont("Arial", 14)  # Fonte padrão
@@ -30,13 +264,30 @@ class TaskWidget(QWidget):
         layout = QVBoxLayout()
         self.setLayout(layout)
 
-        # Descrição da Tarefa
-        self.description_label = QLabel(self.description)
-        self.description_label.setWordWrap(True)  # Permite quebra de linha
-        self.description_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self.description_label.setStyleSheet(f"color: {self.text_color};")
-        self.description_label.setFont(self.font)
-        layout.addWidget(self.description_label)
+        # Descrição da Tarefa usando ClickableTextBrowser para renderizar HTML
+        self.description_browser = ClickableTextBrowser()
+        self.description_browser.setReadOnly(True)
+        self.description_browser.setOpenExternalLinks(True)
+        self.description_browser.setStyleSheet(f"color: {self.text_color}; background-color: transparent;")
+        self.description_browser.setFont(self.font)
+        self.set_description(self.description)  # Converter Markdown para HTML
+        layout.addWidget(self.description_browser)
+
+        # Conectar o sinal de duplo clique
+        self.description_browser.doubleClicked.connect(self.handle_double_click)
+
+        # Checklist
+        self.checklist_layout = QVBoxLayout()
+        self.checklist_widgets = []
+        for item in self.checklist:
+            cb = QCheckBox(item['item'])
+            cb.setChecked(item['checked'])
+            cb.setFont(self.font)
+            cb.setStyleSheet(f"color: {self.text_color};")
+            cb.stateChanged.connect(self.update_checklist_status)
+            self.checklist_layout.addWidget(cb)
+            self.checklist_widgets.append(cb)
+        layout.addLayout(self.checklist_layout)
 
         # Informações Adicionais
         info_layout = QHBoxLayout()
@@ -53,75 +304,170 @@ class TaskWidget(QWidget):
 
         layout.addLayout(info_layout)
 
+        # Botões de Ação
+        buttons_layout = QHBoxLayout()
+
+        # Botão "Editar"
+        self.edit_button = QPushButton("Editar")
+        self.edit_button.setFont(self.font)
+        self.edit_button.clicked.connect(self.confirm_edit)
+        buttons_layout.addWidget(self.edit_button)
+
+        # Botão "Excluir"
+        self.delete_button = QToolButton()
+        self.delete_button.setIcon(QIcon.fromTheme("edit-delete"))
+        self.delete_button.setToolTip("Excluir Tarefa")
+        self.delete_button.clicked.connect(self.confirm_delete)
+        buttons_layout.addWidget(self.delete_button)
+
+        layout.addLayout(buttons_layout)
+
         # Definir Cor de Fundo com Base na Cor Selecionada
         self.update_color()
 
+    def set_description(self, markdown_text):
+        """Converte Markdown para HTML e define na ClickableTextBrowser."""
+        html = markdown.markdown(markdown_text)
+        self.description_browser.setHtml(html)
+
+    def handle_double_click(self):
+        """Chama o método de edição da tarefa no TaskListWidget."""
+        parent_list = self.parent()
+        while parent_list and not isinstance(parent_list, TaskListWidget):
+            parent_list = parent_list.parent()
+        if parent_list and isinstance(parent_list, TaskListWidget):
+            parent_list.edit_task_by_id(self.task_id)
+
+    def confirm_edit(self):
+        """Método para confirmar a edição via botão."""
+        parent_list = self.parent()
+        while parent_list and not isinstance(parent_list, TaskListWidget):
+            parent_list = parent_list.parent()
+        if parent_list and isinstance(parent_list, TaskListWidget):
+            parent_list.edit_task_by_id(self.task_id)
+
+    def update_checklist_status(self):
+        """Atualiza o estado do checklist e emite um sinal para o banco de dados."""
+        self.checklist = [{'item': cb.text(), 'checked': cb.isChecked()} for cb in self.checklist_widgets]
+        self.checklist_changed.emit(self.task_id, self.checklist)
+
     def update_color(self):
+        """Atualiza a cor de fundo do widget."""
         self.setStyleSheet(f"background-color: {self.color}; border: 1px solid #000000; border-radius: 5px;")
 
     def update_text_color(self, new_color):
+        """Atualiza a cor do texto do widget."""
         self.text_color = new_color
-        self.description_label.setStyleSheet(f"color: {self.text_color};")
+        self.description_browser.setStyleSheet(f"color: {self.text_color}; background-color: transparent;")
         self.priority_label.setStyleSheet(f"color: {self.text_color};")
         self.due_date_label.setStyleSheet(f"color: {self.text_color};")
+        for cb in self.checklist_widgets:
+            cb.setStyleSheet(f"color: {self.text_color};")
 
     def set_font(self, font):
+        """Atualiza a fonte do widget."""
         self.font = font
-        self.description_label.setFont(self.font)
+        self.description_browser.setFont(self.font)
         self.priority_label.setFont(self.font)
         self.due_date_label.setFont(self.font)
+        for cb in self.checklist_widgets:
+            cb.setFont(self.font)
 
     def sizeHint(self):
-        # Definir a largura fixa do widget
+        """Define o tamanho sugerido do widget com base no conteúdo."""
         fixed_width = 430  # 450 (largura da coluna) - 20 (margens e paddings)
         self.setFixedWidth(fixed_width)
 
         # Ajustar a altura com base no conteúdo
-        # Usar layout para calcular o tamanho
-        self.description_label.setFixedWidth(fixed_width - 20)  # Ajustar de acordo com o layout
-        height = self.description_label.sizeHint().height() + \
+        self.description_browser.setFixedWidth(fixed_width - 20)  # Ajustar de acordo com o layout
+        checklist_height = sum(cb.sizeHint().height() for cb in self.checklist_widgets)
+        height = self.description_browser.sizeHint().height() + \
+                 checklist_height + \
                  self.priority_label.sizeHint().height() + \
                  self.due_date_label.sizeHint().height() + \
-                 40  # Margens e espaçamentos
+                 60  # Margens e espaçamentos
         return QSize(fixed_width, height)
+
+    def confirm_delete(self):
+        """Confirma e executa a exclusão da tarefa."""
+        reply = QMessageBox.question(
+            self, 'Confirmar Exclusão',
+            "Tem certeza que deseja excluir esta tarefa?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            # Chama o método para deletar no TaskListWidget
+            parent_list = self.parent()
+            while parent_list and not isinstance(parent_list, TaskListWidget):
+                parent_list = parent_list.parent()
+            if parent_list and isinstance(parent_list, TaskListWidget):
+                parent_list.delete_task(self.task_id)
 
 
 class TaskListWidget(QListWidget):
-    def __init__(self, parent=None, kanban_tab=None):
+    """Lista de tarefas dentro de uma coluna Kanban."""
+
+    def __init__(self, parent=None, kanban_board=None, column_id=None):
         super().__init__(parent)
         self.setAcceptDrops(True)
         self.setDragEnabled(True)
         self.setDragDropMode(QListWidget.DragDrop)  # Permitir drag and drop entre listas
         self.setDefaultDropAction(Qt.MoveAction)
-        self.kanban_tab = kanban_tab
+        self.kanban_board = kanban_board
+        self.column_id = column_id  # ID da coluna
         self.setStyleSheet("background-color: #f5f5f5; border: 1px solid #ccc;")
         self.setSelectionMode(QListWidget.SingleSelection)
         self.setSpacing(5)  # Espaçamento entre itens
         self.setUniformItemSizes(False)  # Permitir tamanhos variados
 
+        # Conectar o evento de duplo clique para editar a tarefa
+        self.itemDoubleClicked.connect(self.on_item_double_clicked)
+
+    def on_item_double_clicked(self, item):
+        self.edit_task(item)
+
+    def edit_task_by_id(self, task_id):
+        """Editar a tarefa com base no task_id."""
+        for i in range(self.count()):
+            item = self.item(i)
+            if getattr(item, 'task_id', None) == task_id:
+                self.edit_task(item)
+                break
+
+    def edit_task(self, item):
+        """Abre o diálogo de edição para a tarefa."""
+        task_widget = self.itemWidget(item)  # Obter o widget associado ao item
+        if not task_widget:
+            return
+
+        # Abrir o diálogo de edição
+        self.kanban_board.edit_task_dialog(self, task_widget, item)
+
     def startDrag(self, supportedActions):
+        """Inicia o drag e drop de uma tarefa."""
         item = self.currentItem()
         if item:
             task_widget = self.itemWidget(item)
             if task_widget:
                 mimeData = QMimeData()
-                # Serializar os dados da tarefa como uma string JSON
+                # Incluir o task_id nos dados MIME
+                task_id = getattr(item, 'task_id', None)
+                if task_id is None:
+                    QMessageBox.warning(self, "Erro", "ID da tarefa não encontrado.")
+                    return
+
                 task_data = {
-                    'description': task_widget.description,
-                    'priority': task_widget.priority,
-                    'due_date': task_widget.due_date,
-                    'color': task_widget.color,
-                    'text_color': task_widget.text_color  # Salvar a cor do texto
+                    'task_id': task_id
                 }
                 json_data = json.dumps(task_data)
                 mimeData.setData('application/x-task', json_data.encode('utf-8'))
-                
+
                 drag = QDrag(self)
                 drag.setMimeData(mimeData)
-                # Opcional: definir um ícone de arrasto
+                # Definir um ícone de arrasto (captura a imagem do widget da tarefa)
                 pixmap = task_widget.grab()
                 drag.setPixmap(pixmap)
-                
+
                 if drag.exec_(Qt.MoveAction):
                     # Se o drag for aceito, remover o item da lista atual
                     self.takeItem(self.row(item))
@@ -143,221 +489,83 @@ class TaskListWidget(QListWidget):
             # Desserializar os dados da tarefa
             json_data = event.mimeData().data('application/x-task').data().decode('utf-8')
             task_data = json.loads(json_data)
-            description = task_data.get('description', '')
-            priority = task_data.get('priority', 'Média')
-            due_date = task_data.get('due_date', '2023-01-01')
-            color = task_data.get('color', '#ccffcc')
-            text_color = task_data.get('text_color', '#000000')  # Novo campo
-            
-            # Adicionar a tarefa à lista atual
-            self.add_task(description, priority, due_date, color, text_color)
-            
+            task_id = task_data.get('task_id')
+
+            if task_id is None:
+                QMessageBox.warning(self, "Erro", "ID da tarefa não encontrado nos dados.")
+                return
+
+            # Atualizar a coluna da tarefa no banco de dados
+            self.kanban_board.db.update_task_column(task_id, self.column_id)
+
+            # Obter a tarefa atualizada do banco de dados
+            task = self.kanban_board.db.get_task(task_id)
+            if task:
+                self.add_task_from_db(task)
+
             event.acceptProposedAction()
         else:
             super().dropEvent(event)
 
-    def add_task(self, description, priority, due_date, color="#ccffcc", text_color="#000000"):
-        task_widget = TaskWidget(description, priority, due_date, color, text_color, font=self.kanban_tab.default_font)
+    def add_task_from_db(self, task):
+        """Adiciona uma tarefa à lista a partir dos dados do banco de dados."""
+        task_widget = TaskWidget(
+            task_id=task['id'],
+            description=task['description'],
+            priority=task['priority'],
+            due_date=task['due_date'],
+            checklist=task['checklist'],
+            color=task['color'],
+            text_color=task['text_color'],
+            font=self.kanban_board.default_font  # Fonte padrão do quadro Kanban
+        )
+        # Conectar o sinal checklist_changed ao slot on_checklist_changed
+        task_widget.checklist_changed.connect(self.on_checklist_changed)
+
         list_item = QListWidgetItem(self)
         list_item.setSizeHint(task_widget.sizeHint())
+        list_item.task_id = task['id']  # Armazenar o ID da tarefa
 
         self.addItem(list_item)
         self.setItemWidget(list_item, task_widget)
 
-    def edit_task(self, item):
-        task_widget = self.itemWidget(item)  # Utilizar o item diretamente
-        if not task_widget:
-            return
+    def on_checklist_changed(self, task_id, updated_checklist):
+        """Atualiza o checklist no banco de dados."""
+        self.kanban_board.db.update_checklist(task_id, updated_checklist)
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Editar Tarefa")
-        dialog.setFixedSize(600, 700)  # Aumentado para acomodar a fonte e mais elementos
-        layout = QVBoxLayout(dialog)
-
-        description_label = QLabel("Descrição da Tarefa:")
-        description_label.setFont(self.kanban_tab.default_font)
-        layout.addWidget(description_label)
-
-        description_input = QTextEdit()
-        description_input.setPlainText(task_widget.description)
-        description_input.setFont(self.kanban_tab.default_font)
-        layout.addWidget(description_input)
-
-        priority_label = QLabel("Prioridade:")
-        priority_label.setFont(self.kanban_tab.default_font)
-        layout.addWidget(priority_label)
-
-        priority_selector = QComboBox()
-        priority_selector.addItems(["Alta", "Média", "Baixa"])
-        priority_selector.setCurrentText(task_widget.priority)
-        priority_selector.setFont(self.kanban_tab.default_font)
-        layout.addWidget(priority_selector)
-
-        due_date_label = QLabel("Prazo:")
-        due_date_label.setFont(self.kanban_tab.default_font)
-        layout.addWidget(due_date_label)
-
-        calendar = QCalendarWidget()
-        calendar.setSelectedDate(QDate.fromString(task_widget.due_date, "yyyy-MM-dd"))
-        calendar.setFont(self.kanban_tab.default_font)
-        layout.addWidget(calendar)
-
-        color_label = QLabel("Cor de Fundo da Tarefa:")
-        color_label.setFont(self.kanban_tab.default_font)
-        layout.addWidget(color_label)
-
-        color_button = QPushButton("Selecionar Cor")
-        color_button.setStyleSheet(f"background-color: {task_widget.color};")
-        color_button.setFont(self.kanban_tab.default_font)
-        layout.addWidget(color_button)
-
-        text_color_label = QLabel("Cor do Texto da Tarefa:")
-        text_color_label.setFont(self.kanban_tab.default_font)
-        layout.addWidget(text_color_label)
-
-        text_color_button = QPushButton("Selecionar Cor do Texto")
-        text_color_button.setStyleSheet(f"color: {task_widget.text_color};")
-        text_color_button.setFont(self.kanban_tab.default_font)
-        layout.addWidget(text_color_button)
-
-        selected_color = task_widget.color
-        selected_text_color = task_widget.text_color
-
-        def select_color():
-            nonlocal selected_color
-            color = QColorDialog.getColor()
-            if color.isValid():
-                selected_color = color.name()
-                color_button.setStyleSheet(f"background-color: {selected_color};")
-
-        def select_text_color():
-            nonlocal selected_text_color
-            color = QColorDialog.getColor()
-            if color.isValid():
-                selected_text_color = color.name()
-                text_color_button.setStyleSheet(f"color: {selected_text_color};")
-
-        color_button.clicked.connect(select_color)
-        text_color_button.clicked.connect(select_text_color)
-
-        save_button = QPushButton("Salvar")
-        save_button.setFont(self.kanban_tab.default_font)
-        layout.addWidget(save_button)
-
-        def save_task_action():
-            description = description_input.toPlainText().strip()
-            priority = priority_selector.currentText()
-            due_date = calendar.selectedDate().toString("yyyy-MM-dd")
-            color = selected_color
-            text_color = selected_text_color
-            if description:
-                task_widget.description = description
-                task_widget.priority = priority
-                task_widget.due_date = due_date
-                task_widget.color = color
-                task_widget.text_color = text_color
-
-                task_widget.description_label.setText(description)
-                task_widget.priority_label.setText(f"Prioridade: {priority}")
-                task_widget.due_date_label.setText(f"Prazo: {due_date}")
-                task_widget.update_color()
-                task_widget.update_text_color(text_color)
-
-                # Atualizar a fonte
-                task_widget.set_font(self.kanban_tab.default_font)
-
-                # Atualizar o sizeHint e o tamanho do item
-                list_item = self.item(self.row(item))
-                list_item.setSizeHint(task_widget.sizeHint())
-
-                dialog.accept()
-            else:
-                QMessageBox.warning(dialog, "Aviso", "Descrição da tarefa não pode estar vazia.")
-
-        save_button.clicked.connect(save_task_action)
-        dialog.setLayout(layout)
-        dialog.exec_()
-
-    def delete_task(self, item):
-        reply = QMessageBox.question(
-            self, "Excluir Tarefa", f"Tem certeza que deseja excluir a tarefa?",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        if reply == QMessageBox.Yes:
-            self.takeItem(self.row(item))
-
-    def change_due_date(self, item):
-        task_widget = self.itemWidget(item)
-        if not task_widget:
-            return
-
-        calendar = QCalendarWidget(self)
-        calendar.setSelectedDate(QDate.fromString(task_widget.due_date, "yyyy-MM-dd"))
-        calendar.setFont(self.kanban_tab.default_font)
-        dialog = QDialog(self)
-        layout = QVBoxLayout(dialog)
-        layout.addWidget(calendar)
-        confirm_button = QPushButton("Confirmar", dialog)
-        confirm_button.setFont(self.kanban_tab.default_font)
-        layout.addWidget(confirm_button)
-
-        def confirm_action():
-            new_due_date = calendar.selectedDate().toString("yyyy-MM-dd")
-            task_widget.due_date = new_due_date
-            task_widget.due_date_label.setText(f"Prazo: {new_due_date}")
-            dialog.accept()
-
-        confirm_button.clicked.connect(confirm_action)
-
-        dialog.setWindowTitle("Alterar Prazo")
-        dialog.setFixedSize(600, 700)  # Aumentado para acomodar a fonte e mais elementos
-        dialog.exec_()
-
-    def change_text_color(self, item):
-        task_widget = self.itemWidget(item)
-        if not task_widget:
-            return
-
-        color = QColorDialog.getColor(initial=QColor(task_widget.text_color), parent=self, title="Selecionar Cor do Texto")
-        if color.isValid():
-            new_text_color = color.name()
-            task_widget.update_text_color(new_text_color)
-
-            # Atualizar a fonte
-            task_widget.set_font(self.kanban_tab.default_font)
-
-            # Atualizar o sizeHint e o tamanho do item
-            list_item = self.item(self.row(item))
-            list_item.setSizeHint(task_widget.sizeHint())
-
-    def contextMenuEvent(self, event):
-        item = self.itemAt(event.pos())
-        if item:
-            menu = QMenu(self)
-            edit_action = menu.addAction("Editar Tarefa")
-            delete_action = menu.addAction("Excluir Tarefa")
-            change_due_date_action = menu.addAction("Alterar Prazo")
-            change_text_color_action = menu.addAction("Alterar Cor do Texto")  # Nova ação
-
-            action = menu.exec_(self.mapToGlobal(event.pos()))
-            if action == edit_action:
-                self.edit_task(item)
-            elif action == delete_action:
-                self.delete_task(item)
-            elif action == change_due_date_action:
-                self.change_due_date(item)
-            elif action == change_text_color_action:
-                self.change_text_color(item)
+    def delete_task(self, task_id):
+        """Remove a tarefa do banco de dados e da interface."""
+        # Remover do banco de dados
+        self.kanban_board.db.delete_task(task_id)
+        # Remover da UI
+        for i in range(self.count()):
+            item = self.item(i)
+            if getattr(item, 'task_id', None) == task_id:
+                self.takeItem(i)
+                break
 
 
-class KanbanTab(QWidget):
-    def __init__(self, parent=None):
+class KanbanBoard(QWidget):
+    """Representa um único quadro Kanban."""
+
+    def __init__(self, board_name, board_id=None, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
         # Definir uma fonte padrão confortável (por exemplo, Arial 14)
         self.default_font = QFont("Arial", 14)
 
+        # Inicializar o gerenciador de banco de dados
+        self.db = DatabaseManager()
+
+        # Registrar o quadro no banco de dados se board_id não for fornecido
+        if board_id is None:
+            board_id = self.db.get_board_id(board_name)
+            if board_id is None:
+                board_id = self.db.add_board(board_name)
+        self.board_id = board_id
+
+        # Menu Bar interno (opcional)
         self.menu_bar = QMenuBar(self)
         self.file_menu = QMenu("Arquivo", self)
         self.task_menu = QMenu("Tarefas", self)
@@ -366,43 +574,33 @@ class KanbanTab(QWidget):
         self.menu_bar.addMenu(self.task_menu)
         self.menu_bar.addMenu(self.view_menu)
 
-        export_action = QAction(QIcon("icons/export.png"), "Exportar Tarefas (CSV)", self)
-        export_action.triggered.connect(self.export_tasks)
+        # Adicionar ações ao menu interno (opcional)
+        export_action = QAction("Exportar Tarefas (CSV)", self)
+        export_action.triggered.connect(self.export_tasks)  # Implementação opcional
         self.file_menu.addAction(export_action)
 
-        import_action = QAction(QIcon("icons/import.png"), "Importar Tarefas (CSV)", self)
-        import_action.triggered.connect(self.import_tasks)
+        import_action = QAction("Importar Tarefas (CSV)", self)
+        import_action.triggered.connect(self.import_tasks)  # Implementação opcional
         self.file_menu.addAction(import_action)
 
-        add_column_action = QAction(QIcon("icons/add_column.png"), "Adicionar Coluna", self)
+        add_column_action = QAction("Adicionar Coluna", self)
         add_column_action.triggered.connect(self.add_column_dialog)
         self.task_menu.addAction(add_column_action)
-
-        # Remover ação de alterar tamanho da fonte do menu
-        # change_font_action = QAction(QIcon("icons/font_size.png"), "Alterar Tamanho da Fonte", self)
-        # change_font_action.triggered.connect(self.change_font_size)
-        # self.view_menu.addAction(change_font_action)
 
         self.layout.setMenuBar(self.menu_bar)
 
         # Botões: Adicionar Tarefa e Adicionar Coluna
         buttons_layout = QHBoxLayout()
 
-        self.add_task_button = QPushButton(QIcon("icons/add_task.png"), "Adicionar Tarefa", self)
+        self.add_task_button = QPushButton("Adicionar Tarefa", self)
         self.add_task_button.setFont(self.default_font)
         self.add_task_button.clicked.connect(self.add_task)
         buttons_layout.addWidget(self.add_task_button)
 
-        self.add_column_button = QPushButton(QIcon("icons/add_column.png"), "Adicionar Coluna", self)
+        self.add_column_button = QPushButton("Adicionar Coluna", self)
         self.add_column_button.setFont(self.default_font)
         self.add_column_button.clicked.connect(self.add_column_dialog)
         buttons_layout.addWidget(self.add_column_button)
-
-        # Remover o botão de alterar tamanho da fonte
-        # self.change_font_button = QPushButton(QIcon("icons/font_size.png"), "Tamanho da Fonte", self)
-        # self.change_font_button.clicked.connect(self.change_font_size)
-        # self.change_font_button.setFont(self.default_font)
-        # buttons_layout.addWidget(self.change_font_button)
 
         self.layout.addLayout(buttons_layout)
 
@@ -417,14 +615,23 @@ class KanbanTab(QWidget):
         self.layout.addWidget(self.scroll_area)
 
         self.columns = {}
-        for title in ["A Fazer", "Fazendo", "Concluído"]:
-            self.add_column(title)
+        # Carregar colunas do banco de dados ou adicionar padrões
+        columns = self.db.get_columns(self.board_id)
+        if not columns:
+            # Adicionar colunas padrão se nenhuma existir no banco de dados
+            for title in ["A Fazer", "Fazendo", "Concluído"]:
+                self.add_column(title)
+        else:
+            # Adicionar colunas existentes do banco de dados
+            for column in columns:
+                column_id, title = column
+                self.add_column(title, column_id)
 
         # Aplicar a fonte padrão a todos os elementos existentes
         self.apply_default_font()
 
     def apply_default_font(self):
-        # Aplicar a fonte padrão a todos os elementos existentes
+        """Aplica a fonte padrão a todos os elementos existentes."""
         for column in self.columns.values():
             # Atualizar o font dos labels das colunas
             column["label"].setFont(self.default_font)
@@ -437,17 +644,24 @@ class KanbanTab(QWidget):
                 if task_widget:
                     task_widget.set_font(self.default_font)
 
-    def add_column(self, title):
+    def add_column(self, title, column_id=None):
+        """Adiciona uma coluna ao quadro Kanban."""
         if title in self.columns:
             QMessageBox.warning(self, "Aviso", "Coluna já existe!")
             return
+
+        if column_id is None:
+            column_id = self.db.add_column(self.board_id, title)
+            if column_id is None:
+                QMessageBox.warning(self, "Aviso", f"A coluna '{title}' já existe no banco de dados.")
+                return
 
         column_layout = QVBoxLayout()
         column_widget = QWidget()
         column_widget.setLayout(column_layout)
         column_widget.setFixedWidth(450)  # Definindo largura fixa para 450 pixels
 
-        # Layout para o título (Removido o botão de ajustar largura)
+        # Layout para o título
         header_layout = QHBoxLayout()
         title_label = QLabel(title, self)
         title_label.setAlignment(Qt.AlignCenter)
@@ -455,42 +669,69 @@ class KanbanTab(QWidget):
         title_label.setFont(self.default_font)
         header_layout.addWidget(title_label)
 
-        # **Remoção do botão de ajustar largura**
-        # Ajustar o layout do cabeçalho apenas com o título centralizado
+        # Botão para excluir a coluna
+        delete_column_button = QToolButton()
+        delete_column_button.setIcon(QIcon.fromTheme("edit-delete"))
+        delete_column_button.setToolTip(f"Excluir Coluna '{title}'")
+        delete_column_button.clicked.connect(lambda: self.remove_column(title, column_id))
+        header_layout.addWidget(delete_column_button)
 
         column_layout.addLayout(header_layout)
 
-        task_list = TaskListWidget(self.scroll_content, kanban_tab=self)
+        task_list = TaskListWidget(self.scroll_content, kanban_board=self, column_id=column_id)
         column_layout.addWidget(task_list)
 
-        delete_button = QPushButton(f"Excluir {title}", self)
-        delete_button.setFont(self.default_font)
-        delete_button.clicked.connect(lambda: self.remove_column(title))
-        column_layout.addWidget(delete_button)
-
-        self.columns[title] = {"widget": column_widget, "list": task_list, "label": title_label}
+        self.columns[title] = {"widget": column_widget, "list": task_list, "label": title_label, "id": column_id}
         self.scroll_layout.addWidget(column_widget)
 
+        # Carregar tarefas existentes da coluna
+        tasks = self.db.get_tasks_by_column(column_id)
+        for task in tasks:
+            task_list.add_task_from_db(task)
+
     def add_column_dialog(self):
+        """Abre um diálogo para adicionar uma nova coluna."""
         column_name, ok = QInputDialog.getText(self, "Nova Coluna", "Nome da Coluna:")
         if ok and column_name.strip():
             self.add_column(column_name.strip())
 
-    def remove_column(self, title):
-        if title in self.columns:
+    def remove_column(self, title, column_id):
+        """Remove uma coluna do quadro Kanban após confirmação."""
+        reply = QMessageBox.question(
+            self, 'Confirmação',
+            f"Tem certeza que deseja excluir a coluna '{title}' e todas as suas tarefas?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.db.remove_column(column_id)
             column = self.columns.pop(title)
             column["widget"].deleteLater()
 
     def clear_all_columns(self):
+        """Remove todas as colunas do quadro Kanban."""
         for column_name in list(self.columns.keys()):
-            self.remove_column(column_name)
+            column = self.columns.pop(column_name)
+            column["widget"].deleteLater()
 
     def add_task(self):
+        """Abre o diálogo para adicionar uma nova tarefa."""
         dialog = QDialog(self)
         dialog.setWindowTitle("Adicionar Tarefa")
-        dialog.setFixedSize(600, 700)  # Aumentado para acomodar a fonte e mais elementos
+        dialog.resize(600, 800)  # Permitir redimensionamento inicial
         layout = QVBoxLayout(dialog)
 
+        # Selecionar Coluna
+        column_label = QLabel("Selecionar Coluna:")
+        column_label.setFont(self.default_font)
+        layout.addWidget(column_label)
+
+        column_selector = QComboBox()
+        column_selector.setFont(self.default_font)
+        column_names = list(self.columns.keys())
+        column_selector.addItems(column_names)
+        layout.addWidget(column_selector)
+
+        # Descrição da Tarefa
         description_label = QLabel("Descrição da Tarefa:")
         description_label.setFont(self.default_font)
         layout.addWidget(description_label)
@@ -499,6 +740,7 @@ class KanbanTab(QWidget):
         description_input.setFont(self.default_font)
         layout.addWidget(description_input)
 
+        # Prioridade
         priority_label = QLabel("Prioridade:")
         priority_label.setFont(self.default_font)
         layout.addWidget(priority_label)
@@ -508,6 +750,7 @@ class KanbanTab(QWidget):
         priority_selector.setFont(self.default_font)
         layout.addWidget(priority_selector)
 
+        # Prazo
         due_date_label = QLabel("Prazo:")
         due_date_label.setFont(self.default_font)
         layout.addWidget(due_date_label)
@@ -516,6 +759,7 @@ class KanbanTab(QWidget):
         calendar.setFont(self.default_font)
         layout.addWidget(calendar)
 
+        # Cor de Fundo
         color_label = QLabel("Cor de Fundo da Tarefa:")
         color_label.setFont(self.default_font)
         layout.addWidget(color_label)
@@ -525,6 +769,7 @@ class KanbanTab(QWidget):
         color_button.setFont(self.default_font)
         layout.addWidget(color_button)
 
+        # Cor do Texto
         text_color_label = QLabel("Cor do Texto da Tarefa:")
         text_color_label.setFont(self.default_font)
         layout.addWidget(text_color_label)
@@ -534,8 +779,31 @@ class KanbanTab(QWidget):
         text_color_button.setFont(self.default_font)
         layout.addWidget(text_color_button)
 
+        # Checklist
+        checklist_label = QLabel("Checklist:")
+        checklist_label.setFont(self.default_font)
+        layout.addWidget(checklist_label)
+
+        manage_checklist_button = QPushButton("Gerenciar Checklist")
+        manage_checklist_button.setFont(self.default_font)
+        layout.addWidget(manage_checklist_button)
+
+        # Layout para Botões de Ação
+        buttons_layout = QHBoxLayout()
+
+        add_button = QPushButton("Adicionar")
+        add_button.setFont(self.default_font)
+        buttons_layout.addWidget(add_button)
+
+        cancel_button = QPushButton("Cancelar")
+        cancel_button.setFont(self.default_font)
+        buttons_layout.addWidget(cancel_button)
+
+        layout.addLayout(buttons_layout)
+
         selected_color = "#ccffcc"  # Cor padrão de fundo
         selected_text_color = "#000000"  # Cor padrão do texto
+        current_checklist = []
 
         def select_color():
             nonlocal selected_color
@@ -551,12 +819,15 @@ class KanbanTab(QWidget):
                 selected_text_color = color.name()
                 text_color_button.setStyleSheet(f"color: {selected_text_color};")
 
+        def manage_checklist_action():
+            nonlocal current_checklist
+            updated_checklist = self.manage_checklist(dialog, current_checklist)
+            if updated_checklist is not None:
+                current_checklist = updated_checklist
+
         color_button.clicked.connect(select_color)
         text_color_button.clicked.connect(select_text_color)
-
-        add_button = QPushButton("Adicionar")
-        add_button.setFont(self.default_font)
-        layout.addWidget(add_button)
+        manage_checklist_button.clicked.connect(manage_checklist_action)
 
         def add_task_action():
             description = description_input.toPlainText().strip()
@@ -564,100 +835,679 @@ class KanbanTab(QWidget):
             due_date = calendar.selectedDate().toString("yyyy-MM-dd")
             color = selected_color
             text_color = selected_text_color
+            checklist = current_checklist
             if description:
-                self.columns["A Fazer"]["list"].add_task(description, priority, due_date, color, text_color)
+                # Obter o ID da coluna selecionada
+                selected_column_name = column_selector.currentText()
+                selected_column = self.columns.get(selected_column_name)
+                if selected_column:
+                    column_id = selected_column["id"]
+                    task_id = self.db.add_task(column_id, description, priority, due_date, color, text_color)
+                    for item in checklist:
+                        self.db.add_checklist_item(task_id, item['item'], item['checked'])
+                    # Atualizar a UI
+                    selected_column["list"].add_task_from_db({
+                        'id': task_id,
+                        'description': description,
+                        'priority': priority,
+                        'due_date': due_date,
+                        'color': color,
+                        'text_color': text_color,
+                        'checklist': checklist
+                    })
+                    dialog.accept()
+                else:
+                    QMessageBox.warning(dialog, "Aviso", "Coluna selecionada não encontrada.")
+            else:
+                QMessageBox.warning(dialog, "Aviso", "Descrição da tarefa não pode estar vazia.")
+
+        def cancel_action():
+            dialog.reject()
+
+        add_button.clicked.connect(add_task_action)
+        cancel_button.clicked.connect(cancel_action)
+
+        dialog.setLayout(layout)
+        dialog.exec_()
+
+    def edit_task_dialog(self, task_list_widget, task_widget, list_item):
+        """Abre o diálogo de edição para uma tarefa específica."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Editar Tarefa")
+        dialog.resize(600, 800)  # Permitir redimensionamento inicial
+        layout = QVBoxLayout(dialog)
+
+        # Descrição da Tarefa
+        description_label = QLabel("Descrição da Tarefa:")
+        description_label.setFont(self.default_font)
+        layout.addWidget(description_label)
+
+        description_input = QTextEdit()
+        description_input.setPlainText(task_widget.description)
+        description_input.setFont(self.default_font)
+        layout.addWidget(description_input)
+
+        # Prioridade
+        priority_label = QLabel("Prioridade:")
+        priority_label.setFont(self.default_font)
+        layout.addWidget(priority_label)
+
+        priority_selector = QComboBox()
+        priority_selector.addItems(["Alta", "Média", "Baixa"])
+        priority_selector.setCurrentText(task_widget.priority)
+        priority_selector.setFont(self.default_font)
+        layout.addWidget(priority_selector)
+
+        # Prazo
+        due_date_label = QLabel("Prazo:")
+        due_date_label.setFont(self.default_font)
+        layout.addWidget(due_date_label)
+
+        calendar = QCalendarWidget()
+        calendar.setSelectedDate(QDate.fromString(task_widget.due_date, "yyyy-MM-dd"))
+        calendar.setFont(self.default_font)
+        layout.addWidget(calendar)
+
+        # Cor de Fundo
+        color_label = QLabel("Cor de Fundo da Tarefa:")
+        color_label.setFont(self.default_font)
+        layout.addWidget(color_label)
+
+        color_button = QPushButton("Selecionar Cor")
+        color_button.setStyleSheet(f"background-color: {task_widget.color};")
+        color_button.setFont(self.default_font)
+        layout.addWidget(color_button)
+
+        # Cor do Texto
+        text_color_label = QLabel("Cor do Texto da Tarefa:")
+        text_color_label.setFont(self.default_font)
+        layout.addWidget(text_color_label)
+
+        text_color_button = QPushButton("Selecionar Cor do Texto")
+        text_color_button.setStyleSheet(f"color: {task_widget.text_color};")
+        text_color_button.setFont(self.default_font)
+        layout.addWidget(text_color_button)
+
+        # Checklist
+        checklist_label = QLabel("Checklist:")
+        checklist_label.setFont(self.default_font)
+        layout.addWidget(checklist_label)
+
+        manage_checklist_button = QPushButton("Gerenciar Checklist")
+        manage_checklist_button.setFont(self.default_font)
+        layout.addWidget(manage_checklist_button)
+
+        # Layout para Botões de Ação
+        buttons_layout = QHBoxLayout()
+
+        save_button = QPushButton("Salvar")
+        save_button.setFont(self.default_font)
+        buttons_layout.addWidget(save_button)
+
+        cancel_button = QPushButton("Cancelar")
+        cancel_button.setFont(self.default_font)
+        buttons_layout.addWidget(cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        selected_color = task_widget.color
+        selected_text_color = task_widget.text_color
+        current_checklist = task_widget.checklist.copy()
+
+        def select_color():
+            nonlocal selected_color
+            color = QColorDialog.getColor()
+            if color.isValid():
+                selected_color = color.name()
+                color_button.setStyleSheet(f"background-color: {selected_color};")
+
+        def select_text_color():
+            nonlocal selected_text_color
+            color = QColorDialog.getColor()
+            if color.isValid():
+                selected_text_color = color.name()
+                text_color_button.setStyleSheet(f"color: {selected_text_color};")
+
+        def manage_checklist_action():
+            nonlocal current_checklist
+            updated_checklist = self.manage_checklist(dialog, current_checklist)
+            if updated_checklist is not None:
+                current_checklist = updated_checklist
+
+        color_button.clicked.connect(select_color)
+        text_color_button.clicked.connect(select_text_color)
+        manage_checklist_button.clicked.connect(manage_checklist_action)
+
+        def save_task_action():
+            description = description_input.toPlainText().strip()
+            priority = priority_selector.currentText()
+            due_date = calendar.selectedDate().toString("yyyy-MM-dd")
+            color = selected_color
+            text_color = selected_text_color
+            checklist = current_checklist
+            if description:
+                # Atualizar no banco de dados
+                task_id = task_widget.task_id
+                self.db.update_task(task_id, description, priority, due_date, color, text_color)
+                self.db.update_checklist(task_id, checklist)
+
+                # Atualizar a UI
+                task_widget.description = description
+                task_widget.priority = priority
+                task_widget.due_date = due_date
+                task_widget.color = color
+                task_widget.text_color = text_color
+                task_widget.checklist = checklist
+
+                task_widget.set_description(description)  # Atualizar a descrição renderizada
+
+                task_widget.priority_label.setText(f"Prioridade: {priority}")
+                task_widget.due_date_label.setText(f"Prazo: {due_date}")
+                task_widget.update_color()
+                task_widget.update_text_color(text_color)
+
+                # Atualizar checklist
+                while task_widget.checklist_layout.count():
+                    child = task_widget.checklist_layout.takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
+                task_widget.checklist_widgets.clear()
+
+                for chk in checklist:
+                    cb = QCheckBox(chk['item'])
+                    cb.setChecked(chk['checked'])
+                    cb.setFont(self.default_font)
+                    cb.setStyleSheet(f"color: {task_widget.text_color};")
+                    cb.stateChanged.connect(task_widget.update_checklist_status)
+                    task_widget.checklist_layout.addWidget(cb)
+                    task_widget.checklist_widgets.append(cb)
+
+                # Atualizar o tamanho do item
+                list_item.setSizeHint(task_widget.sizeHint())
+
                 dialog.accept()
             else:
                 QMessageBox.warning(dialog, "Aviso", "Descrição da tarefa não pode estar vazia.")
 
-        add_button.clicked.connect(add_task_action)
+        def cancel_action():
+            dialog.reject()
+
+        save_button.clicked.connect(save_task_action)
+        cancel_button.clicked.connect(cancel_action)
+
+        dialog.setLayout(layout)
+        dialog.exec_()
+
+    def manage_checklist(self, dialog, current_checklist=None):
+        """
+        Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
+        Retorna a lista atualizada de checklists.
+        """
+        checklist = current_checklist.copy() if current_checklist else []
+
+        checklist_dialog = QDialog(dialog)
+        checklist_dialog.setWindowTitle("Gerenciar Checklist")
+        checklist_dialog.resize(400, 500)  # Permitir redimensionamento
+        layout = QVBoxLayout(checklist_dialog)
+
+        checklist_list = QListWidget()
+        for item in checklist:
+            list_item = QListWidgetItem(item['item'])
+            list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
+            list_item.setCheckState(Qt.Checked if item['checked'] else Qt.Unchecked)
+            checklist_list.addItem(list_item)
+        layout.addWidget(checklist_list)
+
+        buttons_layout = QHBoxLayout()
+
+        add_item_button = QPushButton("Adicionar Item")
+        remove_item_button = QPushButton("Remover Item")
+        buttons_layout.addWidget(add_item_button)
+        buttons_layout.addWidget(remove_item_button)
+        layout.addLayout(buttons_layout)
+
+        save_button = QPushButton("Salvar Checklist")
+        layout.addWidget(save_button)
+
+        def add_item():
+            text, ok = QInputDialog.getText(checklist_dialog, "Novo Item", "Descrição do Item:")
+            if ok and text.strip():
+                list_item = QListWidgetItem(text.strip())
+                list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
+                list_item.setCheckState(Qt.Unchecked)
+                checklist_list.addItem(list_item)
+
+        def remove_item():
+            selected_items = checklist_list.selectedItems()
+            if not selected_items:
+                return
+            for item in selected_items:
+                checklist_list.takeItem(checklist_list.row(item))
+
+        def save_checklist():
+            updated_checklist = []
+            for i in range(checklist_list.count()):
+                item = checklist_list.item(i)
+                updated_checklist.append({'item': item.text(), 'checked': item.checkState() == Qt.Checked})
+            nonlocal checklist
+            checklist = updated_checklist
+            checklist_dialog.accept()
+
+        add_item_button.clicked.connect(add_item)
+        remove_item_button.clicked.connect(remove_item)
+        save_button.clicked.connect(save_checklist)
+
+        if checklist_dialog.exec_() == QDialog.Accepted:
+            return checklist
+        else:
+            return current_checklist
+
+    def edit_task_dialog(self, task_list_widget, task_widget, list_item):
+        """Abre o diálogo de edição para uma tarefa específica."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Editar Tarefa")
+        dialog.resize(600, 800)  # Permitir redimensionamento inicial
+        layout = QVBoxLayout(dialog)
+
+        # Descrição da Tarefa
+        description_label = QLabel("Descrição da Tarefa:")
+        description_label.setFont(self.default_font)
+        layout.addWidget(description_label)
+
+        description_input = QTextEdit()
+        description_input.setPlainText(task_widget.description)
+        description_input.setFont(self.default_font)
+        layout.addWidget(description_input)
+
+        # Prioridade
+        priority_label = QLabel("Prioridade:")
+        priority_label.setFont(self.default_font)
+        layout.addWidget(priority_label)
+
+        priority_selector = QComboBox()
+        priority_selector.addItems(["Alta", "Média", "Baixa"])
+        priority_selector.setCurrentText(task_widget.priority)
+        priority_selector.setFont(self.default_font)
+        layout.addWidget(priority_selector)
+
+        # Prazo
+        due_date_label = QLabel("Prazo:")
+        due_date_label.setFont(self.default_font)
+        layout.addWidget(due_date_label)
+
+        calendar = QCalendarWidget()
+        calendar.setSelectedDate(QDate.fromString(task_widget.due_date, "yyyy-MM-dd"))
+        calendar.setFont(self.default_font)
+        layout.addWidget(calendar)
+
+        # Cor de Fundo
+        color_label = QLabel("Cor de Fundo da Tarefa:")
+        color_label.setFont(self.default_font)
+        layout.addWidget(color_label)
+
+        color_button = QPushButton("Selecionar Cor")
+        color_button.setStyleSheet(f"background-color: {task_widget.color};")
+        color_button.setFont(self.default_font)
+        layout.addWidget(color_button)
+
+        # Cor do Texto
+        text_color_label = QLabel("Cor do Texto da Tarefa:")
+        text_color_label.setFont(self.default_font)
+        layout.addWidget(text_color_label)
+
+        text_color_button = QPushButton("Selecionar Cor do Texto")
+        text_color_button.setStyleSheet(f"color: {task_widget.text_color};")
+        text_color_button.setFont(self.default_font)
+        layout.addWidget(text_color_button)
+
+        # Checklist
+        checklist_label = QLabel("Checklist:")
+        checklist_label.setFont(self.default_font)
+        layout.addWidget(checklist_label)
+
+        manage_checklist_button = QPushButton("Gerenciar Checklist")
+        manage_checklist_button.setFont(self.default_font)
+        layout.addWidget(manage_checklist_button)
+
+        # Layout para Botões de Ação
+        buttons_layout = QHBoxLayout()
+
+        save_button = QPushButton("Salvar")
+        save_button.setFont(self.default_font)
+        buttons_layout.addWidget(save_button)
+
+        cancel_button = QPushButton("Cancelar")
+        cancel_button.setFont(self.default_font)
+        buttons_layout.addWidget(cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        selected_color = task_widget.color
+        selected_text_color = task_widget.text_color
+        current_checklist = task_widget.checklist.copy()
+
+        def select_color():
+            nonlocal selected_color
+            color = QColorDialog.getColor()
+            if color.isValid():
+                selected_color = color.name()
+                color_button.setStyleSheet(f"background-color: {selected_color};")
+
+        def select_text_color():
+            nonlocal selected_text_color
+            color = QColorDialog.getColor()
+            if color.isValid():
+                selected_text_color = color.name()
+                text_color_button.setStyleSheet(f"color: {selected_text_color};")
+
+        def manage_checklist_action():
+            nonlocal current_checklist
+            updated_checklist = self.manage_checklist(dialog, current_checklist)
+            if updated_checklist is not None:
+                current_checklist = updated_checklist
+
+        color_button.clicked.connect(select_color)
+        text_color_button.clicked.connect(select_text_color)
+        manage_checklist_button.clicked.connect(manage_checklist_action)
+
+        def save_task_action():
+            description = description_input.toPlainText().strip()
+            priority = priority_selector.currentText()
+            due_date = calendar.selectedDate().toString("yyyy-MM-dd")
+            color = selected_color
+            text_color = selected_text_color
+            checklist = current_checklist
+            if description:
+                # Atualizar no banco de dados
+                task_id = task_widget.task_id
+                self.db.update_task(task_id, description, priority, due_date, color, text_color)
+                self.db.update_checklist(task_id, checklist)
+
+                # Atualizar a UI
+                task_widget.description = description
+                task_widget.priority = priority
+                task_widget.due_date = due_date
+                task_widget.color = color
+                task_widget.text_color = text_color
+                task_widget.checklist = checklist
+
+                task_widget.set_description(description)  # Atualizar a descrição renderizada
+
+                task_widget.priority_label.setText(f"Prioridade: {priority}")
+                task_widget.due_date_label.setText(f"Prazo: {due_date}")
+                task_widget.update_color()
+                task_widget.update_text_color(text_color)
+
+                # Atualizar checklist
+                while task_widget.checklist_layout.count():
+                    child = task_widget.checklist_layout.takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
+                task_widget.checklist_widgets.clear()
+
+                for chk in checklist:
+                    cb = QCheckBox(chk['item'])
+                    cb.setChecked(chk['checked'])
+                    cb.setFont(self.default_font)
+                    cb.setStyleSheet(f"color: {task_widget.text_color};")
+                    cb.stateChanged.connect(task_widget.update_checklist_status)
+                    task_widget.checklist_layout.addWidget(cb)
+                    task_widget.checklist_widgets.append(cb)
+
+                # Atualizar o tamanho do item
+                list_item.setSizeHint(task_widget.sizeHint())
+
+                dialog.accept()
+            else:
+                QMessageBox.warning(dialog, "Aviso", "Descrição da tarefa não pode estar vazia.")
+
+        def cancel_action():
+            dialog.reject()
+
+        save_button.clicked.connect(save_task_action)
+        cancel_button.clicked.connect(cancel_action)
+
         dialog.setLayout(layout)
         dialog.exec_()
 
     def export_tasks(self):
-        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Tarefas", "", "CSV Files (*.csv)")
-        if not file_path:
-            return
-
-        if not file_path.lower().endswith(".csv"):
-            file_path += ".csv"
-
-        try:
-            with open(file_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.writer(f)
-                writer.writerow(["Coluna", "Descrição", "Prioridade", "Prazo", "Cor de Fundo", "Cor do Texto"])
-                for column_name, column in self.columns.items():
-                    if column["list"].count() == 0:
-                        # Escrever uma linha indicando a coluna vazia
-                        writer.writerow([column_name, "", "", "", "", ""])
-                    else:
-                        for i in range(column["list"].count()):
-                            list_item = column["list"].item(i)
-                            task_widget = column["list"].itemWidget(list_item)
-                            if task_widget:
-                                # Substituir quebras de linha por espaços para manter a integridade do CSV
-                                description = task_widget.description.replace("\n", " ")
-                                writer.writerow([
-                                    column_name,
-                                    description,
-                                    task_widget.priority,
-                                    task_widget.due_date,
-                                    task_widget.color,
-                                    task_widget.text_color
-                                ])
-            QMessageBox.information(self, "Exportado", f"Tarefas exportadas para {file_path}")
-        except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Falha ao exportar tarefas: {e}")
+        """Implementação opcional de exportação para CSV."""
+        # Exemplo básico de exportação de tarefas para CSV
+        filename, _ = QFileDialog.getSaveFileName(self, "Exportar Tarefas", "", "CSV Files (*.csv)")
+        if filename:
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["ID", "Descrição", "Prioridade", "Prazo", "Cor", "Cor do Texto", "Checklist"])
+                for column in self.columns.values():
+                    task_list = column["list"]
+                    for i in range(task_list.count()):
+                        item = task_list.item(i)
+                        task_widget = task_list.itemWidget(item)
+                        if task_widget:
+                            checklist_str = "; ".join([f"{chk['item']} [{'X' if chk['checked'] else ' '}]"
+                                                       for chk in task_widget.checklist])
+                            writer.writerow([
+                                task_widget.task_id,
+                                task_widget.description,
+                                task_widget.priority,
+                                task_widget.due_date,
+                                task_widget.color,
+                                task_widget.text_color,
+                                checklist_str
+                            ])
+            QMessageBox.information(self, "Sucesso", "Tarefas exportadas com sucesso!")
 
     def import_tasks(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Carregar Tarefas", "", "CSV Files (*.csv)")
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                # Coletar todos os nomes de colunas únicos do arquivo
-                columns_in_file = set()
-                tasks = []
+        """Implementação opcional de importação de CSV."""
+        filename, _ = QFileDialog.getOpenFileName(self, "Importar Tarefas", "", "CSV Files (*.csv)")
+        if filename:
+            with open(filename, 'r', newline='', encoding='utf-8') as csvfile:
+                reader = csv.DictReader(csvfile)
                 for row in reader:
-                    column_name = row.get("Coluna")
-                    description = row.get("Descrição")
-                    priority = row.get("Prioridade")
-                    due_date = row.get("Prazo")
-                    color = row.get("Cor de Fundo", "#ccffcc")
-                    text_color = row.get("Cor do Texto", "#000000")
-                    if column_name:
-                        columns_in_file.add(column_name)
-                        if description and priority and due_date:
-                            tasks.append({
-                                "column": column_name,
-                                "description": description,
-                                "priority": priority,
-                                "due_date": due_date,
-                                "color": color,
-                                "text_color": text_color
-                            })
+                    description = row["Descrição"]
+                    priority = row["Prioridade"]
+                    due_date = row["Prazo"]
+                    color = row["Cor"]
+                    text_color = row["Cor do Texto"]
+                    checklist_str = row["Checklist"]
+                    # Processar checklist
+                    checklist = []
+                    if checklist_str:
+                        items = checklist_str.split("; ")
+                        for item in items:
+                            if "[X]" in item:
+                                chk_item = item.replace("[X]", "").strip()
+                                checked = True
+                            else:
+                                chk_item = item.replace("[ ]", "").strip()
+                                checked = False
+                            checklist.append({'item': chk_item, 'checked': checked})
+                    # Adicionar a tarefa à primeira coluna disponível
+                    if self.columns:
+                        first_column = next(iter(self.columns.values()))
+                        column_id = first_column["id"]
+                        task_id = self.db.add_task(column_id, description, priority, due_date, color, text_color)
+                        for chk in checklist:
+                            self.db.add_checklist_item(task_id, chk['item'], chk['checked'])
+                        # Atualizar a UI
+                        first_column["list"].add_task_from_db({
+                            'id': task_id,
+                            'description': description,
+                            'priority': priority,
+                            'due_date': due_date,
+                            'color': color,
+                            'text_color': text_color,
+                            'checklist': checklist
+                        })
+            QMessageBox.information(self, "Sucesso", "Tarefas importadas com sucesso!")
 
-            # Limpar todas as colunas existentes
-            self.clear_all_columns()
+    def manage_checklist(self, dialog, current_checklist=None):
+        """
+        Abre um sub-diálogo para adicionar, remover ou editar itens de checklist.
+        Retorna a lista atualizada de checklists.
+        """
+        checklist = current_checklist.copy() if current_checklist else []
 
-            # Adicionar colunas conforme o arquivo
-            for column_name in columns_in_file:
-                self.add_column(column_name)
+        checklist_dialog = QDialog(dialog)
+        checklist_dialog.setWindowTitle("Gerenciar Checklist")
+        checklist_dialog.resize(400, 500)  # Permitir redimensionamento
+        layout = QVBoxLayout(checklist_dialog)
 
-            # Adicionar tarefas nas colunas correspondentes
-            for task in tasks:
-                if task["column"] in self.columns:
-                    self.columns[task["column"]]["list"].add_task(
-                        task["description"],
-                        task["priority"],
-                        task["due_date"],
-                        task["color"],
-                        task["text_color"]
-                    )
+        checklist_list = QListWidget()
+        for item in checklist:
+            list_item = QListWidgetItem(item['item'])
+            list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
+            list_item.setCheckState(Qt.Checked if item['checked'] else Qt.Unchecked)
+            checklist_list.addItem(list_item)
+        layout.addWidget(checklist_list)
 
-            QMessageBox.information(self, "Importado", "Tarefas importadas com sucesso!")
-        except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Falha ao importar tarefas: {e}")
+        buttons_layout = QHBoxLayout()
 
+        add_item_button = QPushButton("Adicionar Item")
+        remove_item_button = QPushButton("Remover Item")
+        buttons_layout.addWidget(add_item_button)
+        buttons_layout.addWidget(remove_item_button)
+        layout.addLayout(buttons_layout)
+
+        save_button = QPushButton("Salvar Checklist")
+        layout.addWidget(save_button)
+
+        def add_item():
+            text, ok = QInputDialog.getText(checklist_dialog, "Novo Item", "Descrição do Item:")
+            if ok and text.strip():
+                list_item = QListWidgetItem(text.strip())
+                list_item.setFlags(list_item.flags() | Qt.ItemIsUserCheckable)
+                list_item.setCheckState(Qt.Unchecked)
+                checklist_list.addItem(list_item)
+
+        def remove_item():
+            selected_items = checklist_list.selectedItems()
+            if not selected_items:
+                return
+            for item in selected_items:
+                checklist_list.takeItem(checklist_list.row(item))
+
+        def save_checklist():
+            updated_checklist = []
+            for i in range(checklist_list.count()):
+                item = checklist_list.item(i)
+                updated_checklist.append({'item': item.text(), 'checked': item.checkState() == Qt.Checked})
+            nonlocal checklist
+            checklist = updated_checklist
+            checklist_dialog.accept()
+
+        add_item_button.clicked.connect(add_item)
+        remove_item_button.clicked.connect(remove_item)
+        save_button.clicked.connect(save_checklist)
+
+        if checklist_dialog.exec_() == QDialog.Accepted:
+            return checklist
+        else:
+            return current_checklist
+
+
+class KanbanTab(QWidget):
+    """Gerenciador de múltiplos quadros Kanban como sub-abas."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.layout = QVBoxLayout(self)
+
+        # Inicializar o gerenciador de banco de dados
+        self.db = DatabaseManager()
+
+        # Menu Bar interno (opcional)
+        self.menu_bar = QMenuBar(self)
+        self.layout.setMenuBar(self.menu_bar)
+
+        # Botão para adicionar novos quadros Kanban
+        kanban_buttons_layout = QHBoxLayout()
+
+        self.add_kanban_button = QPushButton("Adicionar Quadro Kanban", self)
+        self.add_kanban_button.setFont(QFont("Arial", 14))
+        self.add_kanban_button.clicked.connect(self.add_new_kanban_board)
+        kanban_buttons_layout.addWidget(self.add_kanban_button)
+
+        self.layout.addLayout(kanban_buttons_layout)
+
+        # QTabWidget para gerenciar múltiplos quadros Kanban
+        self.kanban_tabs = QTabWidget(self)
+        self.kanban_tabs.setTabsClosable(True)  # Permitir fechar quadros
+        self.kanban_tabs.tabCloseRequested.connect(self.close_kanban_board)
+        self.layout.addWidget(self.kanban_tabs)
+
+        # Carregar quadros Kanban existentes do banco de dados
+        self.load_existing_boards()
+
+    def load_existing_boards(self):
+        """Carrega quadros Kanban existentes do banco de dados e adiciona como sub-abas."""
+        boards = self.db.get_boards()
+        if not boards:
+            # Adicionar um quadro Kanban padrão se nenhum existir
+            self.add_new_kanban_board(initial=True)
+        else:
+            for board in boards:
+                board_id, board_name = board
+                kanban_board = KanbanBoard(board_name, board_id=board_id)
+                self.kanban_tabs.addTab(kanban_board, board_name)
+
+    def add_new_kanban_board(self, initial=False):
+        """Adiciona um novo quadro Kanban como uma nova sub-aba."""
+        if initial:
+            # Adicionar um quadro Kanban padrão ao iniciar
+            name = "Meu Quadro Kanban"
+            # Verificar se já existe um quadro com esse nome
+            for i in range(self.kanban_tabs.count()):
+                if self.kanban_tabs.tabText(i) == name:
+                    return
+        else:
+            name, ok = QInputDialog.getText(self, "Novo Quadro Kanban", "Nome do Quadro Kanban:")
+            if not (ok and name.strip()):
+                return
+            name = name.strip()
+            # Verificar se o nome já existe
+            for i in range(self.kanban_tabs.count()):
+                if self.kanban_tabs.tabText(i) == name:
+                    QMessageBox.warning(self, "Aviso", f"O quadro '{name}' já existe.")
+                    return
+
+        kanban_board = KanbanBoard(name)
+        self.kanban_tabs.addTab(kanban_board, name)
+        self.kanban_tabs.setCurrentWidget(kanban_board)
+
+    def close_kanban_board(self, index):
+        """Fecha a sub-aba do quadro Kanban selecionado."""
+        tab = self.kanban_tabs.widget(index)
+        if isinstance(tab, KanbanBoard):
+            reply = QMessageBox.question(
+                self, 'Confirmar Fechamento',
+                f"Tem certeza que deseja fechar o quadro Kanban '{self.kanban_tabs.tabText(index)}'?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                # Remover do banco de dados
+                self.db.remove_board(tab.board_id)
+                # Remover da interface
+                self.kanban_tabs.removeTab(index)
+                tab.deleteLater()
+        else:
+            # Para outros tipos de abas, se existirem
+            self.kanban_tabs.removeTab(index)
+            tab.deleteLater()
+
+
+def main():
+    """Função principal para executar o aplicativo Kanban."""
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")  # Opcional: definir estilo da aplicação
+
+    kanban_tab = KanbanTab()
+    kanban_tab.setWindowTitle("Aplicativo Kanban")
+    kanban_tab.resize(1200, 800)  # Tamanho inicial da janela
+    kanban_tab.show()
+
+    sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()
