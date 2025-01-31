@@ -1,7 +1,7 @@
 import markdown
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit,
-    QScrollArea, QFileDialog, QMessageBox, QToolBar, QAction, QFontComboBox, QSpinBox,
+    QScrollArea, QFileDialog, QMessageBox, QToolBar, QAction, QSpinBox,
     QColorDialog, QDialog, QFormLayout, QTextBrowser
 )
 from PyQt5.QtCore import Qt
@@ -64,11 +64,17 @@ class MindMapTab(QWidget):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
+        # Variáveis de estado para estilos
+        self.current_text_color = "#000000"  # Cor padrão: preto
+        self.editor_font_size = 12  # Tamanho de fonte padrão do editor
+        self.preview_font_size = 12  # Tamanho de fonte padrão do preview
+
         # Título da aba
         self.layout.addWidget(QLabel("Editor de Texto"))
 
         # Área de texto
-        self.text_area = QTextEdit(self)  # Inicializa o QTextEdit antes da barra de ferramentas
+        self.text_area = QTextEdit(self)
+        self.text_area.setFontPointSize(self.editor_font_size)
         self.layout.addWidget(self.text_area)
 
         # Conecta o sinal de alteração de texto para atualizar o preview em tempo real
@@ -76,8 +82,8 @@ class MindMapTab(QWidget):
 
         # Barra de ferramentas
         self.toolbar = QToolBar(self)
-        self.add_actions_to_toolbar()  # Agora, self.text_area já está definido
-        self.layout.addWidget(self.toolbar)  # Coloca a barra de ferramentas no topo
+        self.add_actions_to_toolbar()
+        self.layout.addWidget(self.toolbar)
 
         # Layout de botões
         self.button_layout = QHBoxLayout()
@@ -105,6 +111,9 @@ class MindMapTab(QWidget):
         # Suporte para tema padrão (tema claro ou escuro)
         self.apply_theme()
 
+        # Atualiza o preview inicialmente
+        self.update_preview()
+
     def apply_theme(self):
         """Aplica o tema de escuro/claro ao editor (padrão do sistema)"""
         # O Qt gerencia o tema automaticamente com base nas configurações do sistema
@@ -129,17 +138,23 @@ class MindMapTab(QWidget):
         find_replace_action.triggered.connect(self.open_find_replace_dialog)
         self.toolbar.addAction(find_replace_action)
 
-        # Seleção de fonte
-        self.font_combo = QFontComboBox(self)
-        self.font_combo.currentFontChanged.connect(self.change_font)
-        self.toolbar.addWidget(self.font_combo)
+        # Seleção de tamanho da fonte do editor
+        self.editor_font_size_spinbox = QSpinBox(self)
+        self.editor_font_size_spinbox.setValue(self.editor_font_size)
+        self.editor_font_size_spinbox.setRange(6, 72)
+        self.editor_font_size_spinbox.setSingleStep(1)
+        self.editor_font_size_spinbox.valueChanged.connect(self.change_editor_font_size)
+        self.toolbar.addWidget(QLabel("Tamanho Fonte Editor: "))
+        self.toolbar.addWidget(self.editor_font_size_spinbox)
 
-        # Seleção de tamanho da fonte
-        self.font_size_spinbox = QSpinBox(self)
-        self.font_size_spinbox.setValue(12)
-        self.font_size_spinbox.setRange(6, 72)
-        self.font_size_spinbox.valueChanged.connect(self.change_font_size)
-        self.toolbar.addWidget(self.font_size_spinbox)
+        # Seleção de tamanho da fonte do preview
+        self.preview_font_size_spinbox = QSpinBox(self)
+        self.preview_font_size_spinbox.setValue(self.preview_font_size)
+        self.preview_font_size_spinbox.setRange(6, 72)
+        self.preview_font_size_spinbox.setSingleStep(1)
+        self.preview_font_size_spinbox.valueChanged.connect(self.change_preview_font_size)
+        self.toolbar.addWidget(QLabel("Tamanho Fonte Preview: "))
+        self.toolbar.addWidget(self.preview_font_size_spinbox)
 
         # Ação para alterar a cor do texto
         color_action = QAction("Cor do Texto", self)
@@ -202,8 +217,9 @@ class MindMapTab(QWidget):
         # Define estilos CSS para o preview, incluindo estilos para blocos de código
         css = f"""
         <style>
-            body {{
-                font-size: {self.font_size_spinbox.value()}px;
+            .preview {{
+                font-size: {self.preview_font_size}px;
+                color: {self.current_text_color};
                 white-space: pre-wrap;  /* Preserva espaços e quebras de linha */
             }}
             pre {{
@@ -230,43 +246,29 @@ class MindMapTab(QWidget):
         </style>
         """
         
-        # Combina o CSS com o conteúdo HTML gerado
-        full_html = css + html_content
+        # Combina o CSS com o conteúdo HTML gerado dentro de uma div com a classe 'preview'
+        full_html = f"{css}<div class='preview'>{html_content}</div>"
         
         # Atualiza a área de visualização com o HTML gerado
         self.preview_area.setHtml(full_html)
 
-    def change_font(self, font):
-        current_font = self.text_area.currentFont()
-        current_font.setFamily(font.family())
-        self.text_area.setCurrentFont(current_font)
-        self.update_preview()  # Atualiza o preview para refletir a mudança
-
-    def change_font_size(self, size):
+    def change_editor_font_size(self, size):
+        """Altera o tamanho da fonte no editor e atualiza o preview."""
+        self.editor_font_size = size
         current_font = self.text_area.currentFont()
         current_font.setPointSize(size)
         self.text_area.setCurrentFont(current_font)
         self.update_preview()  # Atualiza o preview para refletir a mudança
 
+    def change_preview_font_size(self, size):
+        """Altera o tamanho da fonte no preview e atualiza o preview."""
+        self.preview_font_size = size
+        self.update_preview()  # Atualiza o preview para refletir a mudança
+
     def change_text_color(self):
+        """Altera a cor do texto no editor e atualiza o preview."""
         color = QColorDialog.getColor()
         if color.isValid():
+            self.current_text_color = color.name()
             self.text_area.setTextColor(color)
-            # Atualiza a cor no preview também adicionando ao CSS
-            css_color = f"color: {color.name()};"
-            existing_html = self.preview_area.toHtml()
-            
-            # Remover estilos anteriores de cor, se existirem
-            import re
-            updated_html = re.sub(r'color: #[0-9A-Fa-f]{6};', '', existing_html)
-            
-            # Inserir a nova cor após a tag <style>
-            updated_html = re.sub(
-                r'(<style[^>]*>.*?white-space: pre-wrap;)', 
-                r'\1 ' + css_color, 
-                updated_html, 
-                flags=re.DOTALL
-            )
-            
-            # Atualiza a área de visualização com o novo HTML
-            self.preview_area.setHtml(updated_html)
+            self.update_preview()  # Atualiza o preview para refletir a mudança
