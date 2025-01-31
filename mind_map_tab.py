@@ -1,4 +1,9 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit, QScrollArea, QFileDialog, QMessageBox, QToolBar, QAction, QFontComboBox, QSpinBox, QColorDialog, QDialog, QFormLayout
+import markdown
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit,
+    QScrollArea, QFileDialog, QMessageBox, QToolBar, QAction, QFontComboBox, QSpinBox,
+    QColorDialog, QDialog, QFormLayout, QTextBrowser
+)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
@@ -42,7 +47,7 @@ class FindReplaceDialog(QDialog):
                 self.parent().text_area.setTextCursor(cursor)
 
     def replace_text(self):
-        """Substitui o texto encontrado por outro."""
+        """Substitui o texto encontrado por outro."""        
         find_text = self.find_input.text()
         replace_text = self.replace_input.text()
         if find_text and replace_text:
@@ -53,21 +58,26 @@ class FindReplaceDialog(QDialog):
 
 
 class MindMapTab(QWidget):
-    """Aba para o Editor de Texto com funcionalidades avançadas."""
+    """Aba para o Editor de Texto com funcionalidades avançadas.""" 
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
-        # Layout para os controles
-        self.controls_layout = QHBoxLayout()
-
         # Título da aba
         self.layout.addWidget(QLabel("Editor de Texto"))
 
         # Área de texto
-        self.text_area = QTextEdit(self)
+        self.text_area = QTextEdit(self)  # Inicializa o QTextEdit antes da barra de ferramentas
         self.layout.addWidget(self.text_area)
+
+        # Conecta o sinal de alteração de texto para atualizar o preview em tempo real
+        self.text_area.textChanged.connect(self.update_preview)
+
+        # Barra de ferramentas
+        self.toolbar = QToolBar(self)
+        self.add_actions_to_toolbar()  # Agora, podemos adicionar as ações à barra de ferramentas
+        self.layout.addWidget(self.toolbar)  # Coloca a barra de ferramentas no topo
 
         # Barra de rolagem
         self.scroll_area = QScrollArea(self)
@@ -78,7 +88,7 @@ class MindMapTab(QWidget):
         # Layout de botões
         self.button_layout = QHBoxLayout()
 
-        # Botões para salvar, carregar e limpar
+        # Botões para salvar, carregar, limpar e visualizar
         self.save_button = QPushButton("Salvar", self)
         self.save_button.clicked.connect(self.save_file)
         self.button_layout.addWidget(self.save_button)
@@ -93,12 +103,18 @@ class MindMapTab(QWidget):
 
         self.layout.addLayout(self.button_layout)
 
-        # Barra de ferramentas
-        self.toolbar = QToolBar(self)
-        self.layout.addWidget(self.toolbar)
+        # Text area for preview rendering (hidden by default)
+        self.preview_area = QTextBrowser(self)
+        self.preview_area.setVisible(True)  # Preview visível por padrão
+        self.layout.addWidget(self.preview_area)
 
-        # Adicionar ações à barra de ferramentas
-        self.add_actions_to_toolbar()
+        # Suporte para tema padrão (tema claro ou escuro)
+        self.apply_theme()
+
+    def apply_theme(self):
+        """Aplica o tema de escuro/claro ao editor (padrão do sistema)"""
+        # O Qt gerencia o tema automaticamente com base nas configurações do sistema
+        pass
 
     def add_actions_to_toolbar(self):
         """Adiciona ações à barra de ferramentas para formatação de texto."""
@@ -119,24 +135,6 @@ class MindMapTab(QWidget):
         find_replace_action.triggered.connect(self.open_find_replace_dialog)
         self.toolbar.addAction(find_replace_action)
 
-        # Ação de negrito
-        bold_action = QAction("Negrito", self)
-        bold_action.setShortcut("Ctrl+B")
-        bold_action.triggered.connect(self.toggle_bold)
-        self.toolbar.addAction(bold_action)
-
-        # Ação de itálico
-        italic_action = QAction("Itálico", self)
-        italic_action.setShortcut("Ctrl+I")
-        italic_action.triggered.connect(self.toggle_italic)
-        self.toolbar.addAction(italic_action)
-
-        # Ação de sublinhado
-        underline_action = QAction("Sublinhado", self)
-        underline_action.setShortcut("Ctrl+U")
-        underline_action.triggered.connect(self.toggle_underline)
-        self.toolbar.addAction(underline_action)
-
         # Seleção de fonte
         self.font_combo = QFontComboBox(self)
         self.font_combo.currentFontChanged.connect(self.change_font)
@@ -154,51 +152,32 @@ class MindMapTab(QWidget):
         color_action.triggered.connect(self.change_text_color)
         self.toolbar.addAction(color_action)
 
-        # Ação de alinhamento à esquerda
-        left_align_action = QAction("Alinhar Esquerda", self)
-        left_align_action.triggered.connect(self.align_left)
-        self.toolbar.addAction(left_align_action)
-
-        # Ação de alinhamento ao centro
-        center_align_action = QAction("Alinhar Centro", self)
-        center_align_action.triggered.connect(self.align_center)
-        self.toolbar.addAction(center_align_action)
-
-        # Ação de alinhamento à direita
-        right_align_action = QAction("Alinhar Direita", self)
-        right_align_action.triggered.connect(self.align_right)
-        self.toolbar.addAction(right_align_action)
-
     def open_find_replace_dialog(self):
         """Abre a caixa de diálogo para buscar e substituir texto."""
         dialog = FindReplaceDialog(self)
         dialog.exec_()
 
     def save_file(self):
-        """Salva o conteúdo do editor de texto em um arquivo com formatação HTML."""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "HTML Files (*.html);;Text Files (*.txt)")
+        """Salva o conteúdo do editor de texto em um arquivo Markdown."""
+        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Markdown Files (*.md);;Text Files (*.txt)")
         if file_path:
-            # Se o arquivo não tiver extensão, adiciona .html
-            if not file_path.endswith(('.html', '.htm')):
-                file_path += '.html'
             try:
-                # Salvando o conteúdo como HTML
+                markdown_content = self.text_area.toPlainText()
                 with open(file_path, 'w', encoding='utf-8') as file:
-                    file.write(self.text_area.toHtml())
+                    file.write(markdown_content)
+                QMessageBox.information(self, "Sucesso", "Arquivo salvo com sucesso!")
             except Exception as e:
                 QMessageBox.warning(self, "Erro", f"Erro ao salvar o arquivo: {e}")
 
     def load_file(self):
-        """Carrega o conteúdo de um arquivo HTML para o editor de texto."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Carregar Arquivo", "", "HTML Files (*.html);;Text Files (*.txt)")
+        """Carrega o conteúdo de um arquivo Markdown para o editor de texto."""
+        file_path, _ = QFileDialog.getOpenFileName(self, "Carregar Arquivo", "", "Markdown Files (*.md);;Text Files (*.txt)")
         if file_path:
             try:
-                # Carregando o conteúdo de um arquivo HTML
                 with open(file_path, 'r', encoding='utf-8') as file:
-                    if file_path.endswith(('.html', '.htm')):
-                        self.text_area.setHtml(file.read())
-                    else:
-                        self.text_area.setPlainText(file.read())
+                    markdown_content = file.read()
+                    self.text_area.setPlainText(markdown_content)
+                QMessageBox.information(self, "Sucesso", "Arquivo carregado com sucesso!")
             except Exception as e:
                 QMessageBox.warning(self, "Erro", f"Erro ao carregar o arquivo: {e}")
 
@@ -206,51 +185,23 @@ class MindMapTab(QWidget):
         """Limpa o conteúdo do editor de texto."""
         self.text_area.clear()
 
-    def toggle_bold(self):
-        """Alterna o estilo de negrito."""
-        current_font = self.text_area.currentFont()
-        current_font.setBold(not current_font.bold())
-        self.text_area.setCurrentFont(current_font)
-
-    def toggle_italic(self):
-        """Alterna o estilo de itálico."""
-        current_font = self.text_area.currentFont()
-        current_font.setItalic(not current_font.italic())
-        self.text_area.setCurrentFont(current_font)
-
-    def toggle_underline(self):
-        """Alterna o estilo de sublinhado."""
-        current_font = self.text_area.currentFont()
-        current_font.setUnderline(not current_font.underline())
-        self.text_area.setCurrentFont(current_font)
+    def update_preview(self):
+        """Atualiza o preview em tempo real ao digitar o texto no editor."""
+        markdown_text = self.text_area.toPlainText()
+        html_content = markdown.markdown(markdown_text)  # Converte Markdown para HTML
+        self.preview_area.setHtml(html_content)  # Atualiza a área de visualização
 
     def change_font(self, font):
-        """Altera a fonte do texto."""
         current_font = self.text_area.currentFont()
         current_font.setFamily(font.family())
         self.text_area.setCurrentFont(current_font)
 
     def change_font_size(self, size):
-        """Altera o tamanho da fonte."""
         current_font = self.text_area.currentFont()
         current_font.setPointSize(size)
         self.text_area.setCurrentFont(current_font)
 
     def change_text_color(self):
-        """Muda a cor do texto selecionado."""
         color = QColorDialog.getColor()
         if color.isValid():
             self.text_area.setTextColor(color)
-
-    def align_left(self):
-        """Alinha o texto à esquerda."""
-        self.text_area.setAlignment(Qt.AlignLeft)
-
-    def align_center(self):
-        """Alinha o texto ao centro."""
-        self.text_area.setAlignment(Qt.AlignCenter)
-
-    def align_right(self):
-        """Alinha o texto à direita."""
-        self.text_area.setAlignment(Qt.AlignRight)
-

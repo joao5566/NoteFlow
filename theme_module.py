@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QDialog, QFormLayout, QPushButton, QColorDialog, QHBoxLayout, QMessageBox, QApplication, QComboBox
-from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtWidgets import QDialog, QFormLayout, QPushButton, QColorDialog, QHBoxLayout, QMessageBox, QApplication, QComboBox, QSpinBox
+from PyQt5.QtGui import QPalette, QColor, QFont
 from persistence_module import save_theme  # Importando a função save_theme
 import sys
 
@@ -35,8 +35,6 @@ class ThemeDialog(QDialog):
             "Cinza Claro Claro": {"background": "#f7f7f7", "button": "#dcdcdc", "marked_day": "#a0a0a0", "text": "#212121", "dark_mode": False}
         }
 
-
-
         self.theme_selector = QComboBox(self)
         self.theme_selector.addItems(self.predefined_themes.keys())
         self.theme_selector.currentIndexChanged.connect(self.select_predefined_theme)
@@ -64,6 +62,13 @@ class ThemeDialog(QDialog):
         self.dark_mode_button.clicked.connect(self.toggle_dark_mode)
         self.layout.addRow("Modo de Exibição:", self.dark_mode_button)
 
+        # Controle de tamanho da fonte
+        self.font_size_spinbox = QSpinBox(self)
+        self.font_size_spinbox.setRange(6, 36)
+        self.font_size_spinbox.setValue(int(self.theme.get("font_size", 10)))  # Carrega o tamanho da fonte do tema
+        self.font_size_spinbox.valueChanged.connect(self.change_font_size)
+        self.layout.addRow("Tamanho da Fonte:", self.font_size_spinbox)
+
         # Botões de ação
         self.action_buttons_layout = QHBoxLayout()
 
@@ -82,14 +87,14 @@ class ThemeDialog(QDialog):
         self.layout.addRow(self.action_buttons_layout)
 
     def change_color(self, key):
-        """ Abre um diálogo para selecionar a cor e atualiza o tema com pré-visualização ao vivo. """
+        """Abre um diálogo para selecionar a cor e atualiza o tema com pré-visualização ao vivo."""
         color = QColorDialog.getColor()
         if color.isValid():
             self.theme[key] = color.name()
             self.apply_preview()
 
     def toggle_dark_mode(self):
-        """ Alterna entre modo claro e escuro com pré-visualização ao vivo. """
+        """Alterna entre modo claro e escuro com pré-visualização ao vivo."""
         if self.theme.get("dark_mode", False):
             self.theme = self.predefined_themes["Padrão Claro"].copy()
             self.dark_mode_button.setText("Ativar Modo Escuro")
@@ -99,7 +104,7 @@ class ThemeDialog(QDialog):
         self.apply_preview()
 
     def apply_preview(self):
-        """ Aplica uma pré-visualização do tema na interface. """
+        """Aplica uma pré-visualização do tema na interface."""
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(self.theme["background"]))
         palette.setColor(QPalette.Button, QColor(self.theme["button"]))
@@ -114,45 +119,48 @@ class ThemeDialog(QDialog):
         menu_style += f"QMenu::item:selected {{ background-color: {self.theme['marked_day']}; color: {self.theme['text']}; }}"
         QApplication.instance().setStyleSheet(menu_style)
 
-        # Forçar atualização dos widgets para aplicar o tema imediatamente
-        for widget in QApplication.instance().allWidgets():
-            widget.update()
-            # Recriar ou atualizar botões dos dias marcados
-            if widget.objectName() == "marked_day_button":
-                widget.setStyleSheet(f"background-color: {self.theme['marked_day']}; color: {self.theme['text']};")
+        # Atualizar fonte de todos os widgets
+        font_size = self.theme.get("font_size", 10)
+        font = QFont()
+        font.setPointSize(font_size)
+        QApplication.setFont(font)
 
     def select_predefined_theme(self):
-        """ Aplica o tema predefinido selecionado no combobox. """
+        """Aplica o tema predefinido selecionado no combobox."""
         theme_name = self.theme_selector.currentText()
         self.theme = self.predefined_themes[theme_name].copy()
         self.apply_preview()
 
+    def change_font_size(self, size):
+        """Altera o tamanho da fonte do tema e aplica a pré-visualização."""
+        self.theme["font_size"] = size
+        self.apply_preview()
+
     def get_theme(self):
-        """ Retorna o tema atualizado. """
+        """Retorna o tema atualizado."""
         return self.theme
 
     def restore_default_theme(self):
-        """ Restaura o tema para os valores padrões e aplica a pré-visualização. """
+        """Restaura o tema para os valores padrões e aplica a pré-visualização."""
         self.theme = self.predefined_themes["Padrão Claro"].copy()
         self.dark_mode_button.setText("Ativar Modo Escuro")
         self.apply_preview()
         QMessageBox.information(self, "Tema Restaurado", "O tema foi restaurado para o padrão.")
 
     def load_theme(self):
-        """ Carrega o tema salvo anteriormente e aplica. """
+        """Carrega o tema salvo anteriormente e aplica."""
         self.theme = save_theme.load_saved_theme()
         self.apply_preview()
 
     def delete_theme(self):
-        """ Remove o tema salvo e restaura o padrão. """
+        """Remove o tema salvo e restaura o padrão."""
         save_theme.delete_saved_theme()
         self.restore_default_theme()
 
     def save_and_restart(self):
-        """ Salva o tema e reinicia o aplicativo. """
+        """Salva o tema e reinicia o aplicativo."""
         save_theme(self.theme)
         QMessageBox.information(self, "Reiniciar Aplicativo", "O aplicativo será reiniciado para aplicar o tema.")
         qapp = QApplication.instance()
         qapp.quit()
         sys.exit(0)
-

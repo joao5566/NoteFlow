@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QDialog, QComboBox, QSpinBox, QFormLayout, QTabWidget,
     QCalendarWidget  # Adicionado
 )
-from PyQt5.QtGui import QIcon, QPalette, QColor
+from PyQt5.QtGui import QIcon, QPalette, QColor,QFont
 from PyQt5.QtCore import QDate, Qt, QTimer
 import sqlite3  # Importação adicionada
 import random
@@ -27,7 +27,7 @@ from simple_excel import SimpleExcelWidget
 from note_module import NoteDialog
 from notes_table_module import NotesTableWidget
 from theme_module import ThemeDialog
-from motivation_module import show_random_motivation
+
 from export_module import (
     export_notes, import_notes, export_to_pdf, show_about
 )
@@ -162,6 +162,12 @@ class CalendarApp(QMainWindow):
             f"QMenu::item:selected {{ background-color: {self.theme['marked_day']}; color: {self.theme['text']}; }}"
         )
         QApplication.instance().setStyleSheet(menu_style)
+
+          # Aplicar o tamanho da fonte global para a aplicação
+        font_size = int(self.theme.get("font_size", 12))  # Garantir que o valor seja inteiro
+        font = QFont()
+        font.setPointSize(font_size)
+        QApplication.setFont(font)  # Aplica o tamanho da fonte global em todos os widgets
 
     # ------------------------------
     # Inicialização da Interface

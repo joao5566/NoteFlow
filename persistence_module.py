@@ -238,32 +238,64 @@ def save_notes(notes):
                     )
         conn.commit()
 
+
+def add_font_size_column():
+    """Adiciona a coluna 'font_size' na tabela 'theme' se ela não existir."""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        # Verificar se a coluna 'font_size' já existe
+        cursor.execute("PRAGMA table_info(theme)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Se a coluna 'font_size' não existe, adiciona-a
+        if 'font_size' not in columns:
+            cursor.execute("ALTER TABLE theme ADD COLUMN font_size INTEGER DEFAULT 12")
+            conn.commit()
+
+def initialize_theme():
+    """Inicializa o tema, adiciona a coluna font_size se necessário e carrega o tema."""
+    add_font_size_column()  # Garantir que a coluna 'font_size' esteja presente
+    theme = load_theme()
+    return theme
+
 def load_theme():
-    """Carrega o tema do banco de dados."""
+    """Carrega o tema do banco de dados, incluindo o tamanho da fonte."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT key, value FROM theme")
         rows = cursor.fetchall()
         if not rows:
+            # Se não houver dados, retorne o tema padrão
             return {
                 "background": "#ffffff",
                 "button": "#cccccc",
                 "marked_day": "#ffcccc",
                 "text": "#000000",
-                "dark_mode": False
+                "dark_mode": False,
+                "font_size": 10  # Valor padrão para o tamanho da fonte
             }
-        return {key: value for key, value in rows}
+        
+        # Converte os valores para o tipo correto (ex: "font_size" será convertido para int)
+        theme = {key: (int(value) if key == "font_size" else value) for key, value in rows}
+        
+        # Se o campo font_size não existir no tema, define um valor padrão
+        if "font_size" not in theme:
+            theme["font_size"] = 12
+        
+        return theme
+
 
 def save_theme(theme):
-    """Salva o tema no banco de dados."""
+    """Salva o tema no banco de dados, incluindo o tamanho da fonte."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM theme")
+        
+        # Atualiza ou insere os valores de cada chave do tema, incluindo o font_size
         for key, value in theme.items():
-            cursor.execute(
-                "INSERT INTO theme (key, value) VALUES (?, ?)",
-                (key, str(value))
-            )
+            cursor.execute('''
+                INSERT OR REPLACE INTO theme (key, value) VALUES (?, ?)
+            ''', (key, str(value)))
+        
         conn.commit()
 
 
