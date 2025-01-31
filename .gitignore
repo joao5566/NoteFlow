@@ -28,7 +28,7 @@ var/
 # IDEs
 .vscode/
 .idea/
-.spec
+*.spec
 # Outros arquivos temporários
 *.log
 *.tmp
