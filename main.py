@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QPalette, QColor
 from PyQt5.QtCore import QDate, Qt, QTimer
 import sqlite3  # Importação adicionada
-
+import random
 # Importações locais
 from persistence_module import (
     load_notes, save_notes, load_reminders, save_reminders,
@@ -125,6 +125,9 @@ class CalendarApp(QMainWindow):
         self.reminder_timer.timeout.connect(self.check_reminders)
         self.reminder_timer.start(60000)  # Verifica lembretes a cada minuto
 
+         # Exibe a motivação no início
+        self.show_random_motivation_label()  # Chama o método para exibir a motivação   
+
     # ------------------------------
     # Métodos de Tema
     # ------------------------------
@@ -170,6 +173,12 @@ class CalendarApp(QMainWindow):
         self.setCentralWidget(self.central_widget)
         self.layout = QVBoxLayout(self.central_widget)
 
+          # Criação do QLabel para exibir a motivação
+        self.motivation_label = QLabel("", self)  # Cria o QLabel para a motivação
+        self.motivation_label.setStyleSheet("font-size: 18px; color: green;")
+        self.layout.addWidget(self.motivation_label)  # Adiciona ao layout
+        
+
         # Configuração das abas
         self.tabs = QTabWidget(self)
         self.layout.addWidget(self.tabs)
@@ -193,6 +202,8 @@ class CalendarApp(QMainWindow):
         # Atualiza o calendário inicialmente
         self.refresh_calendar()
     
+
+
 
     def init_mind_map_tab(self):
         """Adiciona a aba do Editor de Texto."""
@@ -249,6 +260,43 @@ class CalendarApp(QMainWindow):
 
     
     
+    def show_random_motivation_label(self):
+        motivations = [
+            "Continue se esforçando!",
+            "Todo dia é uma nova oportunidade!",
+            "Consistência é a chave para o sucesso.",
+            "Pequenos passos levam a grandes mudanças.",
+            "Acredite no processo e continue avançando!",
+            "Você é mais forte do que imagina.",
+            "Grandes coisas levam tempo.",
+            "Não tenha medo de falhar, tenha medo de não tentar.",
+            "O sucesso é a soma de pequenos esforços repetidos diariamente.",
+            "Cada dia é uma chance de fazer melhor.",
+            "Seja paciente. Tudo vem ao seu tempo.",
+            "A determinação de hoje constrói o sucesso de amanhã.",
+            "Mesmo o menor progresso é um passo à frente.",
+            "Lembre-se de por que você começou.",
+            "Você é capaz de superar qualquer desafio.",
+            "Não se compare com os outros, compare-se com quem você era ontem.",
+            "Mantenha o foco e nunca desista.",
+            "Desafios são oportunidades disfarçadas.",
+            "O aprendizado nunca é desperdiçado.",
+            "A coragem não é a ausência de medo, mas a decisão de seguir em frente apesar dele.",
+            "O impossível é apenas uma questão de opinião.",
+            "A jornada é tão importante quanto o destino.",
+            "O segredo do sucesso é começar.",
+            "Permita-se crescer, mesmo que isso signifique sair da zona de conforto.",
+            "As dificuldades preparam pessoas comuns para destinos extraordinários.",
+            "Não importa o quão devagar você vá, desde que não pare.",
+            "Persista, a próxima tentativa pode ser a que dará certo.",
+            "Seja a mudança que você quer ver no mundo.",
+            "A única maneira de alcançar o impossível é acreditar que é possível.",
+            "Seu esforço de hoje define suas conquistas de amanhã."
+        ]
+        
+        message = random.choice(motivations)
+        self.motivation_label.setText(message)
+
     def init_notes_tab(self):
         """Configura a aba da tabela de notas."""
         self.notes_tab = NotesTableWidget(self)
