@@ -1,28 +1,84 @@
-# NoteFlow - Aplicativo de Produtividade com Gamificação
+# Calendário Interativo com Notas
 
-O **NoteFlow** é um aplicativo interativo que integra várias funcionalidades de produtividade, como **notas**, **tarefas**, **lembretes**, **planilhas** e **gamificação**. Além disso, ele permite organizar suas tarefas em um sistema de **Kanban**, definir **lembretes** e **visualizar estatísticas**.
+Um aplicativo de calendário interativo que permite gerenciar notas, tarefas, lembretes, um sistema de gamificação e outras funcionalidades.
 
-## Funcionalidades
+## Recursos
 
-- **Calendário Interativo**: Visualize e interaja com um calendário onde você pode adicionar, visualizar e editar notas para datas específicas.
-- **Notas**: Criação e gerenciamento de notas com categorias, tags e exportação para PDF.
-- **Tarefas**: Gerenciamento de tarefas diárias, com a capacidade de marcar como concluídas e adicionar novas.
-- **Gamificação**: Inclui um módulo de pet virtual, onde você pode cuidar de um pet, ganhar moedas e desbloquear novos itens e acessórios.
-- **Kanban**: Organize suas tarefas em um quadro de Kanban, permitindo a fácil movimentação entre diferentes status.
-- **Estatísticas**: Visualize o progresso do seu trabalho com gráficos interativos, como procrastinação, produtividade e progresso de tarefas.
-- **Planilhas Excel**: Edição de planilhas simples com suporte para fórmulas e exportação para Excel.
+- **Gerenciamento de Notas**: Adicione, edite e exclua notas associadas a datas.
+- **Tarefas e Kanban**: Organização de tarefas usando um sistema Kanban.
+- **Estatísticas**: Exibição de gráficos e relatórios sobre notas e produtividade.
+- **Gamificação**: Um sistema de gamificação para incentivar hábitos produtivos.
+- **Editor de Texto**: Um editor de anotações avançado com busca e substituição.
+- **Exportação e Importação**: Possibilidade de exportar notas para PDF e importar/exportar dados.
+- **Tema Personalizável**: Ajuste as cores do tema para melhor experiência de uso.
+
+## Requisitos
+
+- Python 3.x
+- PyQt5
+- SQLite3
+- OpenPyxl (para exportação de planilhas)
 
 ## Instalação
 
-### Requisitos:
-- **Python 3.x**
-- **PyQt5**: Para a interface gráfica.
-- **SQLite**: Banco de dados local para armazenar notas, tarefas e configurações.
-- **openpyxl**: Para exportação e manipulação de planilhas Excel.
-- **matplotlib**: Para geração de gráficos e visualizações.
+1. Clone o repositório:
+   ```sh
+   git clone https://github.com/seu-usuario/seu-repositorio.git
+   cd seu-repositorio
+   ```
+2. Instale as dependências:
+   ```sh
+   pip install -r requirements.txt
+   ```
+3. Execute o programa:
+   ```sh
+   python main.py
+   ```
 
-### Passos para instalação:
+## Estrutura do Projeto
 
-1. Clone este repositório para sua máquina local:
-   ```bash
-   git clone https://github.com/joao5566/NoteFlow.git
+```
+.
+├── main.py                 # Arquivo principal
+├── persistence_module.py   # Gerenciamento do banco de dados
+├── notes_table_module.py   # Módulo de notas
+├── kanban_tab.py           # Aba de tarefas Kanban
+├── stats_module.py         # Módulo de estatísticas
+├── day_notes_dialog.py     # Gerenciamento de notas por data
+├── mind_map_tab.py         # Editor de texto
+├── motivation_module.py    # Mensagens motivacionais
+├── theme_module.py         # Configuração de tema
+├── simple_excel.py         # Exportação e manipulação de planilhas
+└── requirements.txt        # Dependências do projeto
+```
+
+## Uso
+
+- **Adicionar uma Nota**: Clique no dia desejado e adicione uma nova nota.
+- **Gerenciar Tarefas**: Utilize a aba Kanban para organizar suas tarefas.
+- **Visualizar Estatísticas**: Acesse a aba de estatísticas para acompanhar seu progresso.
+- **Personalizar o Tema**: Ajuste as cores e aparência no menu de configurações.
+- **Gamificação**: Acompanhe seu progresso com o sistema de recompensas integrado.
+
+## Contribuição
+
+Se quiser contribuir para o projeto, siga os passos:
+1. Faça um Fork do repositório.
+2. Crie uma branch para sua funcionalidade:
+   ```sh
+   git checkout -b minha-nova-funcionalidade
+   ```
+3. Faça as alterações e commit:
+   ```sh
+   git commit -m "Adiciona nova funcionalidade"
+   ```
+4. Envie para o repositório:
+   ```sh
+   git push origin minha-nova-funcionalidade
+   ```
+5. Abra um Pull Request.
+
+## Licença
+
+Este projeto está licenciado sob a licença MIT.
+
