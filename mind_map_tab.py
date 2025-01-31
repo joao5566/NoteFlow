@@ -76,14 +76,15 @@ class MindMapTab(QWidget):
 
         # Barra de ferramentas
         self.toolbar = QToolBar(self)
-        self.add_actions_to_toolbar()  # Agora, podemos adicionar as ações à barra de ferramentas
+        self.add_actions_to_toolbar()  # Agora, self.text_area já está definido
         self.layout.addWidget(self.toolbar)  # Coloca a barra de ferramentas no topo
 
-        # Barra de rolagem
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area.setWidget(self.text_area)
-        self.scroll_area.setWidgetResizable(True)
-        self.layout.addWidget(self.scroll_area)
+        # Barra de rolagem (opcional, já que QTextEdit já possui barras de rolagem)
+        # Se quiser manter, certifique-se de que não está adicionando QTextEdit duas vezes
+        # self.scroll_area = QScrollArea(self)
+        # self.scroll_area.setWidget(self.text_area)
+        # self.scroll_area.setWidgetResizable(True)
+        # self.layout.addWidget(self.scroll_area)
 
         # Layout de botões
         self.button_layout = QHBoxLayout()
@@ -103,7 +104,7 @@ class MindMapTab(QWidget):
 
         self.layout.addLayout(self.button_layout)
 
-        # Text area for preview rendering (hidden by default)
+        # Área de preview
         self.preview_area = QTextBrowser(self)
         self.preview_area.setVisible(True)  # Preview visível por padrão
         self.layout.addWidget(self.preview_area)
@@ -188,20 +189,75 @@ class MindMapTab(QWidget):
     def update_preview(self):
         """Atualiza o preview em tempo real ao digitar o texto no editor."""
         markdown_text = self.text_area.toPlainText()
-        html_content = markdown.markdown(markdown_text)  # Converte Markdown para HTML
-        self.preview_area.setHtml(html_content)  # Atualiza a área de visualização
+        
+        # Converte Markdown para HTML com as extensões 'fenced_code' e 'codehilite' para blocos de código
+        html_content = markdown.markdown(markdown_text, extensions=['fenced_code', 'codehilite'])
+        
+        # Define estilos CSS para o preview, incluindo estilos para blocos de código
+        css = f"""
+        <style>
+            body {{
+                font-size: {self.font_size_spinbox.value()}px;
+                white-space: pre-wrap;  /* Preserva espaços e quebras de linha */
+            }}
+            pre {{
+                background-color: #f0f0f0;
+                padding: 10px;
+                border-radius: 5px;
+                white-space: pre;  /* Preserva a formatação do código */
+                font-family: monospace;
+            }}
+            code {{
+                background-color: #f0f0f0;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-family: monospace;
+            }}
+            /* Estilos para codehilite */
+            .codehilite {{
+                background: #f0f0f0;
+                padding: 10px;
+                border-radius: 5px;
+            }}
+            .codehilite .hll {{ background-color: #ffffcc }}
+            /* Adicione mais estilos conforme necessário */
+        </style>
+        """
+        
+        # Combina o CSS com o conteúdo HTML gerado
+        full_html = css + html_content
+        
+        # Atualiza a área de visualização com o HTML gerado
+        self.preview_area.setHtml(full_html)
 
     def change_font(self, font):
         current_font = self.text_area.currentFont()
         current_font.setFamily(font.family())
         self.text_area.setCurrentFont(current_font)
+        self.update_preview()  # Atualiza o preview para refletir a mudança
 
     def change_font_size(self, size):
         current_font = self.text_area.currentFont()
         current_font.setPointSize(size)
         self.text_area.setCurrentFont(current_font)
+        self.update_preview()  # Atualiza o preview para refletir a mudança
 
     def change_text_color(self):
         color = QColorDialog.getColor()
         if color.isValid():
             self.text_area.setTextColor(color)
+            # Atualiza a cor no preview também adicionando ao CSS
+            css_color = f"color: {color.name()};"
+            existing_css = self.preview_area.toHtml()
+            
+            # Remover estilos anteriores de cor, se existirem
+            import re
+            updated_css = re.sub(r'color: #[0-9A-Fa-f]{6};', '', existing_css)
+            
+            # Adicionar a nova cor
+            new_css = f"""
+                font-size: {self.font_size_spinbox.value()}px;
+                white-space: pre-wrap;
+                {css_color}
+            """
+            self.preview_area.setStyleSheet(new_css)
