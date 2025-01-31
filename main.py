@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import (
     QDialog, QComboBox, QSpinBox, QFormLayout, QTabWidget,
     QCalendarWidget  # Adicionado
 )
-from PyQt5.QtGui import QIcon, QPalette, QColor,QFont
+from PyQt5.QtGui import QIcon, QPalette, QColor,QFont,QIcon
 from PyQt5.QtCore import QDate, Qt, QTimer
 import sqlite3  # Importação adicionada
 import random
@@ -174,6 +174,7 @@ class CalendarApp(QMainWindow):
     # ------------------------------
 
     def init_ui(self):
+        self.setWindowIcon(QIcon('icone.ico'))
         """Inicializa os componentes da interface do usuário."""
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
