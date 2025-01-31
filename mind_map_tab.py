@@ -79,13 +79,6 @@ class MindMapTab(QWidget):
         self.add_actions_to_toolbar()  # Agora, self.text_area já está definido
         self.layout.addWidget(self.toolbar)  # Coloca a barra de ferramentas no topo
 
-        # Barra de rolagem (opcional, já que QTextEdit já possui barras de rolagem)
-        # Se quiser manter, certifique-se de que não está adicionando QTextEdit duas vezes
-        # self.scroll_area = QScrollArea(self)
-        # self.scroll_area.setWidget(self.text_area)
-        # self.scroll_area.setWidgetResizable(True)
-        # self.layout.addWidget(self.scroll_area)
-
         # Layout de botões
         self.button_layout = QHBoxLayout()
 
@@ -160,7 +153,12 @@ class MindMapTab(QWidget):
 
     def save_file(self):
         """Salva o conteúdo do editor de texto em um arquivo Markdown."""
-        file_path, _ = QFileDialog.getSaveFileName(self, "Salvar Arquivo", "", "Markdown Files (*.md);;Text Files (*.txt)")
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            "Salvar Arquivo", 
+            "", 
+            "Markdown Files (*.md);;Text Files (*.txt)"
+        )
         if file_path:
             try:
                 markdown_content = self.text_area.toPlainText()
@@ -172,7 +170,12 @@ class MindMapTab(QWidget):
 
     def load_file(self):
         """Carrega o conteúdo de um arquivo Markdown para o editor de texto."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Carregar Arquivo", "", "Markdown Files (*.md);;Text Files (*.txt)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, 
+            "Carregar Arquivo", 
+            "", 
+            "Markdown Files (*.md);;Text Files (*.txt)"
+        )
         if file_path:
             try:
                 with open(file_path, 'r', encoding='utf-8') as file:
@@ -190,8 +193,11 @@ class MindMapTab(QWidget):
         """Atualiza o preview em tempo real ao digitar o texto no editor."""
         markdown_text = self.text_area.toPlainText()
         
-        # Converte Markdown para HTML com as extensões 'fenced_code' e 'codehilite' para blocos de código
-        html_content = markdown.markdown(markdown_text, extensions=['fenced_code', 'codehilite'])
+        # Converte Markdown para HTML com as extensões 'fenced_code', 'codehilite' e 'nl2br'
+        html_content = markdown.markdown(
+            markdown_text, 
+            extensions=['fenced_code', 'codehilite', 'nl2br']
+        )
         
         # Define estilos CSS para o preview, incluindo estilos para blocos de código
         css = f"""
@@ -248,16 +254,19 @@ class MindMapTab(QWidget):
             self.text_area.setTextColor(color)
             # Atualiza a cor no preview também adicionando ao CSS
             css_color = f"color: {color.name()};"
-            existing_css = self.preview_area.toHtml()
+            existing_html = self.preview_area.toHtml()
             
             # Remover estilos anteriores de cor, se existirem
             import re
-            updated_css = re.sub(r'color: #[0-9A-Fa-f]{6};', '', existing_css)
+            updated_html = re.sub(r'color: #[0-9A-Fa-f]{6};', '', existing_html)
             
-            # Adicionar a nova cor
-            new_css = f"""
-                font-size: {self.font_size_spinbox.value()}px;
-                white-space: pre-wrap;
-                {css_color}
-            """
-            self.preview_area.setStyleSheet(new_css)
+            # Inserir a nova cor após a tag <style>
+            updated_html = re.sub(
+                r'(<style[^>]*>.*?white-space: pre-wrap;)', 
+                r'\1 ' + css_color, 
+                updated_html, 
+                flags=re.DOTALL
+            )
+            
+            # Atualiza a área de visualização com o novo HTML
+            self.preview_area.setHtml(updated_html)
