@@ -6,7 +6,7 @@
     "level": 2,
     "consumable_type": "happiness_boost",
     "effect": { "amount": 20 },
-    "description": "Aumenta a felicidade do mascote em 20 pontos.",
+    "description": "+20 felicidade",
 	"image_path": "images/drink/orange_juice.png"
 }
 

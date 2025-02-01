@@ -7,7 +7,7 @@
     "level": 1,
     "consumable_type": "food",
     "effect": { "hunger_restore": 30 },
-    "description": "Restaura a fome em 30 pontos.",
+    "description": "-30 fome",
 	"image_path":"images/candy/milk_chocolate.png"
 }
 

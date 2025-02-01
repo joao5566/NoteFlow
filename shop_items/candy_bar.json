@@ -8,6 +8,6 @@
     "effect": {
         "hunger_restore": 5
     },
-    "description": "Restaura 15 de fome.",
+    "description": "-15 fome.",
     "image_path": "images/candy/candy_bar.png"
 }

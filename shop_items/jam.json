@@ -6,7 +6,7 @@
     "level": 1,
     "consumable_type": "food",
     "effect": { "hunger_restore": 10 },
-    "description": "Restaura a fome em 20 pontos.",
+    "description": "-10 fome",
 	"image_path":"images/candy/jam_strawberry.png"
 }
 

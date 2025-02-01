@@ -6,6 +6,6 @@
     "level": 1,
     "consumable_type": "energy_boost",
     "effect": { "amount": 20 },
-    "description": "Aumenta a energia do mascote em 20 pontos.",
+    "description": "+20 energia",
 	 "image_path": "images/drink/soft_drink_blue.png"
 }

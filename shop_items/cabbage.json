@@ -6,7 +6,7 @@
     "level": 1,
     "consumable_type": "food",
     "effect": { "hunger_restore": 15 },
-    "description": "Restaura fome em 15.",
+    "description": "-15 fome",
 	"image_path":"images/green/green_apple.png"
 }
 
