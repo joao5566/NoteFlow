@@ -8,7 +8,6 @@ from minigames.memory import MemoryGame1 as MemoryGame1
 from minigames.memory_game import MemoryGame as MemoryGame
 
 from minigames.pong import PongGame
-from minigames.simple_clicker_game import SimpleClickerGame
 from minigames.snake_game import SnakeGame
 
 # Registro dos minijogos
@@ -76,15 +75,6 @@ def get_minigames():
             "icon": "game_icons/pong.png",
             "xp_reward_interval": {"points": 1, "xp": 5},
             "coin_reward_interval": {"points": 1, "coins": 10},
-        },
-        {
-            "id": "simple_clicker",
-            "name": "Simple Clicker Game",
-            "file": "simple_clicker_game.py",
-            "class": SimpleClickerGame,
-            "icon": "path_to_icon/simple_clicker_icon.png",
-            "xp_reward_interval": {"points": 5, "xp": 10},
-            "coin_reward_interval": {"points": 10, "coins": 2},
         },
         {
             "id": "snake_game",

@@ -1,4 +1,5 @@
 # shop_module.py
+# -*- coding: utf-8 -*-
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox,
@@ -25,7 +26,7 @@ def load_shop_items():
             if file_name.endswith(".json") and file_name != "hats" and file_name != "body_colors":  # Ignora chapéus e cores de corpo
                 file_path = os.path.join(main_items_path, file_name)
                 try:
-                    with open(file_path, "r") as file:
+                    with open(file_path, "r", encoding="utf-8") as file:
                         item_data = json.load(file)
                         if 'type' in item_data and item_data['type'] != 'hat':  # Evita carregar chapéus do diretório principal
                             items.append(item_data)
@@ -38,7 +39,7 @@ def load_shop_items():
             if file_name.endswith(".json"):
                 file_path = os.path.join(hats_path, file_name)
                 try:
-                    with open(file_path, "r") as file:
+                    with open(file_path, "r", encoding="utf-8") as file:
                         hat_data = json.load(file)
                         items.append(hat_data)  # Assume que todos os itens no diretório 'hats' são chapéus
                 except json.JSONDecodeError as e:
@@ -50,7 +51,7 @@ def load_shop_items():
             if file_name.endswith(".json"):
                 file_path = os.path.join(body_colors_path, file_name)
                 try:
-                    with open(file_path, "r") as file:
+                    with open(file_path, "r", encoding="utf-8") as file:
                         body_color_data = json.load(file)
                         body_color_data["type"] = "body_color"  # Certifique-se de definir o tipo como 'body_color'
                         items.append(body_color_data)
@@ -278,31 +279,73 @@ class ShopModule(QWidget):
         purchased_layout.setSpacing(10)
         purchased_layout.setContentsMargins(10, 10, 10, 10)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        purchased_layout.addWidget(scroll)
+        # Cria um QTabWidget para agrupar os itens comprados por categoria
+        self.purchased_tabs = QTabWidget()
+        purchased_layout.addWidget(self.purchased_tabs)
 
-        scroll_content = QWidget()
-        scroll.setWidget(scroll_content)
+        # Define as categorias desejadas e cria um dicionário para armazenar os itens
+        categories = {
+            "Chapéus": [],
+            "Óculos": [],
+            "Luvas": [],
+            "Corpo": []
+        }
 
-        self.purchased_grid = QGridLayout(scroll_content)
-        self.purchased_grid.setSpacing(10)
-        self.purchased_grid.setContentsMargins(10, 10, 10, 10)
-
-        row, col = 0, 0
-        max_columns = 3  # Número máximo de colunas por linha
-
+        # Agrupa os itens comprados por categoria
         for item in self.items:
-            if item.get("type") != "consumable":
-                if self.is_item_purchased(item):
+            if item.get("type") != "consumable" and self.is_item_purchased(item):
+                t = item.get("type")
+                if t == "hat":
+                    categories["Chapéus"].append(item)
+                elif t == "accessory":
+                    shape = item.get("shape")
+                    if shape == "glasses":
+                        categories["Óculos"].append(item)
+                    elif shape == "glove":
+                        categories["Luvas"].append(item)
+                    else:
+                        # Se houver outros tipos de acessórios, você pode criar uma nova categoria ou adicioná-los a uma categoria genérica
+                        categories.setdefault("Acessórios", []).append(item)
+                elif t in ["body_color", "body_shape"]:
+                    categories["Corpo"].append(item)
+
+        # Para cada categoria, cria uma aba interna com um QScrollArea e um layout em grade
+        for cat, items in categories.items():
+            if items:
+                cat_widget = QWidget()
+                cat_layout = QVBoxLayout(cat_widget)
+                cat_layout.setSpacing(10)
+                cat_layout.setContentsMargins(10, 10, 10, 10)
+
+                scroll_area = QScrollArea()
+                scroll_area.setWidgetResizable(True)
+                cat_layout.addWidget(scroll_area)
+
+                scroll_content = QWidget()
+                scroll_area.setWidget(scroll_content)
+
+                grid_layout = QGridLayout(scroll_content)
+                grid_layout.setSpacing(10)
+                grid_layout.setContentsMargins(10, 10, 10, 10)
+
+                row, col = 0, 0
+                max_columns = 3  # Você pode ajustar esse valor conforme o espaço desejado
+
+                # Opcional: ordenar os itens alfabeticamente pelo nome
+                items = sorted(items, key=lambda x: x.get("name", ""))
+                for item in items:
                     item_widget = self.create_item_widget(item, purchase=False)
-                    self.purchased_grid.addWidget(item_widget, row, col)
+                    grid_layout.addWidget(item_widget, row, col)
                     col += 1
-                    if col == max_columns:
+                    if col >= max_columns:
                         col = 0
                         row += 1
 
+                self.purchased_tabs.addTab(cat_widget, cat)
+
+        # Adiciona a aba "Itens Comprados" ao QTabWidget principal da loja
         self.tabs.addTab(self.purchased_tab, "Itens Comprados")
+
 
     def init_consumables_tab(self):
         self.consumables_tab = QWidget()
@@ -692,7 +735,7 @@ class ShopModule(QWidget):
                 self.pet_game.unlocked_consumables[item_id] += 1
             else:
                 self.pet_game.unlocked_consumables[item_id] = 1
-            QMessageBox.information(self, "Compra Realizada", f"Você comprou '{item.get('name')}' com sucesso!")
+            #QMessageBox.information(self, "Compra Realizada", f"Você comprou '{item.get('name')}' com sucesso!")
             self.pet_game.save_pet_status()
             self.refresh_shop()
         else:
