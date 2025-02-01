@@ -9,6 +9,7 @@ from minigames.memory_game import MemoryGame as MemoryGame
 from minigames.forma_tower import StackGame as IceTowerGame
 from minigames.pong import PongGame
 from minigames.snake_game import SnakeGame
+from minigames.SlidingPuzzleGame import SlidingPuzzleGame
 
 # Registro dos minijogos
 def get_minigames():
@@ -91,6 +92,14 @@ def get_minigames():
             "file": "forma_tower.py",
             "class": IceTowerGame,
             "icon": "game_icons/stack.png",
+            "xp_reward_interval": {"points": 1, "xp": 5},
+            "coin_reward_interval": {"points": 1, "coins": 10},
+        },{
+            "id": "SlidingPuzzleGame",
+            "name": "Puzzle Deslizante",
+            "file": "SlidingPuzzleGame.py",
+            "class": SlidingPuzzleGame,
+            "icon": "game_icons/sliding.png",
             "xp_reward_interval": {"points": 1, "xp": 5},
             "coin_reward_interval": {"points": 1, "coins": 10},
         },
