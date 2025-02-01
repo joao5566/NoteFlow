@@ -77,27 +77,22 @@ return self.score
 
     <h3>Passos para adicionar novos minijogos:</h3>
     <ol>
-        <li>Coloque o arquivo Python do jogo na pasta <code>~/.pet_game/minigames</code>.</li>
-        <li>Adicione um arquivo de configuração JSON correspondente na pasta <code>~/.pet_game/minigames_config</code>.</li>
+        <li>Coloque o arquivo Python do jogo na pasta <code>minigames</code>.</li>
+        <li>Adicione o jogo ao arquivo minigames_registry.py para que ele seja corretamente importador </code>.</li>
         <li>O JSON deve conter informações como o nome do jogo, ícone e recompensas, seguindo o formato padrão.</li>
     </ol>
 
-    <p>Exemplo de arquivo JSON de configuração:</p>
-    <pre><code>{
-    "id": "simple_clicker",
-    "name": "Simple Clicker",
-    "file": "simple_clicker_game.py",
-    "class": "SimpleClickerGame",
-    "icon": "game_icons/clicker.png",
-    "xp_reward_interval": {
-        "points": 10,
-        "xp": 1
-    },
-    "coin_reward_interval": {
-        "points": 10,
-        "coins": 1
-    }
-}
+    <p>Exemplo de  de configuração do jogo para o minigames_registry.py:</p>
+    <pre><code>
+        {
+            "id": "memory_game",
+            "name": "Jogo de Memória",
+            "file": "memory_game.py",
+            "class": MemoryGame,
+            "icon": "game_icons/memori.png",
+            "xp_reward_interval": {"points": 1, "xp": 1},
+            "coin_reward_interval": {"points": 2, "coins": 1},
+        },
 </code></pre>
 
     <hr>

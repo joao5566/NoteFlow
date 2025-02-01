@@ -1,148 +1,219 @@
 import pygame
 import random
+import sys
 
-class FormaTower:
+class StackGame:
     def __init__(self):
         pygame.init()
-        self.tela = pygame.display.set_mode((800, 600))
-        pygame.display.set_caption("Forma Tower")
+        pygame.font.init()
+        
+        # Resolução fixa
+        self.largura = 1280
+        self.altura = 720
+        self.tela = pygame.display.set_mode((self.largura, self.altura))
+        pygame.display.set_caption("Stack!")
         self.relogio = pygame.time.Clock()
+        self.fps = 30
+
+        # Parâmetros dos blocos
+        self.altura_bloco = 30
+        self.largura_bloco_inicial = 300
+
+        # Função para gerar uma cor aleatória
+        self.random_color = lambda: (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
+
+        # Cria a pilha de blocos
+        self.stack = []
+        base_bloco = {
+            "x": (self.largura - self.largura_bloco_inicial) // 2,
+            "y": self.altura - self.altura_bloco,
+            "largura": self.largura_bloco_inicial,
+            "altura": self.altura_bloco,
+            "color": self.random_color()
+        }
+        self.stack.append(base_bloco)
+
+        # Bloco atual que se move horizontalmente (começa acima do bloco base)
+        self.current_block = {
+            "x": 0,
+            "y": base_bloco["y"] - self.altura_bloco,
+            "largura": self.largura_bloco_inicial,
+            "altura": self.altura_bloco,
+            "color": self.random_color()
+        }
+        self.block_direction = 1  # 1 = direita, -1 = esquerda
+        self.block_speed = 8
+
+        # Partículas: lista de dicionários com x, y, dx, dy e lifetime
+        self.particles = []
+
+        # Estado do jogo
         self.score = 0
         self.rodando = True
+        self.jogo_pausado = True  # Inicia pausado
 
-        # Variáveis do jogador
-        self.player = pygame.Rect(400, 550, 40, 40)  # Exemplo para um quadrado
-        self.velocidade = 5
-        self.salto = -15  # Valor do pulo
-        self.velocidade_gravidade = 0.5
-        self.movimento = 0
-        self.velocidade_horizontal = 5
+    def criar_particulas(self, x, y, color, quantidade=20):
+        """Cria partículas no local (x, y) com uma cor base."""
+        for _ in range(quantidade):
+            particle = {
+                "x": x + random.randint(-10, 10),
+                "y": y + random.randint(-10, 10),
+                "dx": random.uniform(-2, 2),
+                "dy": random.uniform(-2, 2),
+                "lifetime": random.randint(20, 40),
+                "color": color
+            }
+            self.particles.append(particle)
 
-        # Controle de movimento
-        self.movendo_esquerda = False
-        self.movendo_direita = False
+    def atualizar_particulas(self):
+        """Atualiza a posição e a vida útil das partículas."""
+        for particle in self.particles[:]:
+            particle["x"] += particle["dx"]
+            particle["y"] += particle["dy"]
+            particle["lifetime"] -= 1
+            if particle["lifetime"] <= 0:
+                self.particles.remove(particle)
 
-        # Plataformas
-        self.plataformas = []
-        self.criar_plataformas()
+    def desenhar_particulas(self):
+        """Desenha as partículas na tela."""
+        for particle in self.particles:
+            # Desenha partículas como pequenos círculos
+            pygame.draw.circle(self.tela, particle["color"], (int(particle["x"]), int(particle["y"])), 3)
 
-        # Fim de jogo
-        self.game_over = False
+    def processar_eventos(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.rodando = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.rodando = False
+                if event.key == pygame.K_SPACE:
+                    if self.jogo_pausado:
+                        self.jogo_pausado = False
+                    else:
+                        self.drop_block()
 
-        # Variáveis para movimentação da câmera
-        self.camera_y = 0
+    def drop_block(self):
+        """Quando o bloco é 'droppado', calcula a sobreposição com o bloco anterior.
+           Se não houver sobreposição, o jogo termina; caso contrário, corta o excedente,
+           gera partículas e prepara o próximo bloco."""
+        last_block = self.stack[-1]
+        overlap_start = max(last_block["x"], self.current_block["x"])
+        overlap_end = min(last_block["x"] + last_block["largura"],
+                          self.current_block["x"] + self.current_block["largura"])
+        overlap = overlap_end - overlap_start
 
-    def criar_plataformas(self):
-        # Gera plataformas no início em posições aleatórias, sempre acima do jogador
-        for i in range(5):  # Criar algumas plataformas iniciais
-            x = random.randint(100, 700)
-            y = random.randint(100, 500)  # Certifica-se que elas não fiquem muito baixas
-            plataforma = pygame.Rect(x, y, 100, 20)
-            self.plataformas.append(plataforma)
-        
-        # Garante que o jogador comece em cima de uma plataforma
-        self.player.bottom = self.plataformas[-1].top
+        if overlap <= 0:
+            # Sem sobreposição: fim do jogo
+            self.rodando = False
+            return
+
+        # Cria partículas no local do drop
+        self.criar_particulas(self.current_block["x"] + self.current_block["largura"]//2,
+                               self.current_block["y"] + self.current_block["altura"]//2,
+                               self.current_block["color"])
+
+        # Atualiza o bloco atual com a área de sobreposição
+        self.current_block["x"] = overlap_start
+        self.current_block["largura"] = overlap
+
+        # Adiciona o bloco atual à pilha
+        self.stack.append(self.current_block.copy())
+        self.score += 1
+
+        # Prepara o próximo bloco, que se inicia na extremidade esquerda e acima do bloco atual
+        new_y = self.current_block["y"] - self.altura_bloco
+        self.current_block = {
+            "x": 0,
+            "y": new_y,
+            "largura": overlap,
+            "altura": self.altura_bloco,
+            "color": self.random_color()
+        }
+        # Aumenta a velocidade para dificultar
+        self.block_speed = min(self.block_speed + 0.5, 20)
+        # Reinicia a direção para a direita
+        self.block_direction = 1
+
+        # Atualiza a "câmera" se necessário
+        self.atualizar_camera()
+
+    def atualizar_camera(self):
+        """Se o bloco atual estiver muito próximo do topo, desloca toda a pilha para baixo."""
+        threshold = 100
+        if self.current_block["y"] < threshold:
+            desloc = threshold - self.current_block["y"]
+            for bloco in self.stack:
+                bloco["y"] += desloc
+            self.current_block["y"] += desloc
+
+    def atualizar_bloco(self):
+        # Move o bloco atual horizontalmente
+        self.current_block["x"] += self.block_direction * self.block_speed
+        # Inverte a direção se atingir as bordas da janela
+        if self.current_block["x"] < 0:
+            self.current_block["x"] = 0
+            self.block_direction = 1
+        elif self.current_block["x"] + self.current_block["largura"] > self.largura:
+            self.current_block["x"] = self.largura - self.current_block["largura"]
+            self.block_direction = -1
+
+    def desenhar_elementos(self):
+        self.tela.fill((30, 30, 30))
+        # Desenha a pilha de blocos
+        for bloco in self.stack:
+            pygame.draw.rect(self.tela, bloco["color"],
+                             (bloco["x"], bloco["y"], bloco["largura"], bloco["altura"]))
+            pygame.draw.rect(self.tela, (0, 0, 0),
+                             (bloco["x"], bloco["y"], bloco["largura"], bloco["altura"]), 2)
+
+        # Desenha o bloco atual
+        pygame.draw.rect(self.tela, self.current_block["color"],
+                         (self.current_block["x"], self.current_block["y"],
+                          self.current_block["largura"], self.current_block["altura"]))
+        pygame.draw.rect(self.tela, (0, 0, 0),
+                         (self.current_block["x"], self.current_block["y"],
+                          self.current_block["largura"], self.current_block["altura"]), 2)
+
+        # Desenha partículas
+        self.desenhar_particulas()
+
+        # Exibe o score
+        fonte = pygame.font.SysFont(None, 48)
+        texto_score = fonte.render(f"Score: {self.score}", True, self.cor_texto)
+        self.tela.blit(texto_score, (10, 10))
 
     def run(self):
         while self.rodando:
-            self.tela.fill((0, 0, 0))  # Fundo preto
+            self.processar_eventos()
+            if not self.jogo_pausado:
+                self.atualizar_bloco()
+            # Atualiza a câmera se necessário
+            self.atualizar_camera()
 
-            for evento in pygame.event.get():
-                if evento.type == pygame.QUIT:
-                    self.rodando = False
-                if evento.type == pygame.KEYDOWN:
-                    if evento.key == pygame.K_UP and (self.player.bottom == 600 or self.player.bottom in [plataforma.top for plataforma in self.plataformas]):
-                        self.movimento = self.salto
-                    if evento.key == pygame.K_LEFT:
-                        self.movendo_esquerda = True
-                    if evento.key == pygame.K_RIGHT:
-                        self.movendo_direita = True
+            # Atualiza partículas
+            self.atualizar_particulas()
 
-                if evento.type == pygame.KEYUP:
-                    if evento.key == pygame.K_LEFT:
-                        self.movendo_esquerda = False
-                    if evento.key == pygame.K_RIGHT:
-                        self.movendo_direita = False
+            self.desenhar_elementos()
 
-            # Lógica de movimento do jogador
-            if self.movendo_esquerda:
-                self.player.x -= self.velocidade_horizontal
-            if self.movendo_direita:
-                self.player.x += self.velocidade_horizontal
-
-            # Lógica de gravidade e movimento vertical
-            self.movimento += self.velocidade_gravidade
-            self.player.y += self.movimento
-
-            # Atualiza a pontuação conforme o jogador sobe
-            self.score = max(self.score, self.player.top)
-
-            # Remover plataformas que ficaram abaixo do jogador
-            self.plataformas = [plataforma for plataforma in self.plataformas if plataforma.top > self.player.top - 100]
-
-            # Gerar novas plataformas acima do jogador
-            self.gerar_plataformas_acima()
-
-            # Desenhando o jogador
-            pygame.draw.rect(self.tela, (255, 0, 0), self.player)  # Cor do jogador
-
-            # Atualizar as plataformas
-            self.atualizar_plataformas()
-
-            # Verificar colisões
-            self.verificar_colisoes()
-
-            # Exibir pontuação
-            self.exibir_pontuacao()
+            # Se o jogo estiver pausado, exibe mensagem central
+            if self.jogo_pausado:
+                fonte_pause = pygame.font.SysFont(None, 48)
+                msg = fonte_pause.render("Pressione SPACE para começar", True, self.cor_texto)
+                pos_x = self.largura // 2 - msg.get_width() // 2
+                pos_y = self.altura // 2 - msg.get_height() // 2
+                self.tela.blit(msg, (pos_x, pos_y))
 
             pygame.display.flip()
-            self.relogio.tick(60)
-
+            self.relogio.tick(self.fps)
         pygame.quit()
         return self.score
 
-    def gerar_plataformas_acima(self):
-        # Gerar plataformas acima do jogador, em posições aleatórias
-        while self.player.top - self.camera_y > 100:  # Se o jogador subiu mais de 100 pixels
-            x = random.randint(100, 700)
-            y = self.camera_y - random.randint(50, 100)  # Coloca a plataforma mais acima
-            plataforma = pygame.Rect(x, y, 100, 20)
-            self.plataformas.append(plataforma)
-
-            # Aumentar a "altura da câmera" para acompanhar a movimentação do jogador
-            self.camera_y -= 100  # Ajusta a câmera para garantir que plataformas mais acima sejam geradas
-
-    def atualizar_plataformas(self):
-        for plataforma in self.plataformas:
-            pygame.draw.rect(self.tela, (0, 255, 0), plataforma)  # Cor das plataformas
-
-    def verificar_colisoes(self):
-        em_cima_de_plataforma = False  # Variável para verificar se o jogador está tocando uma plataforma
-        for plataforma in self.plataformas:
-            # Verifica se o jogador está na posição certa para "cair" em cima da plataforma
-            if self.player.colliderect(plataforma) and self.movimento > 0:
-                self.movimento = 0
-                self.player.bottom = plataforma.top
-                em_cima_de_plataforma = True  # O jogador está tocando a plataforma
-                self.score = max(self.score, self.player.top)  # Atualiza a pontuação com a altura alcançada
-
-        # Se o jogador cair fora da tela (perde o jogo)
-        if self.player.top > 600:
-            self.game_over = True
-            self.rodando = False
-
-        # Permite pular apenas quando estiver tocando o solo ou uma plataforma
-        if em_cima_de_plataforma or self.player.bottom == 600:
-            if self.movimento >= 0:  # Garantir que o jogador não fique pulando constantemente
-                self.movimento = 0
-
-    def exibir_pontuacao(self):
-        fonte = pygame.font.SysFont(None, 30)
-        texto = fonte.render(f"Altura: {self.score}", True, (255, 255, 255))
-        self.tela.blit(texto, (10, 10))
+    @property
+    def cor_texto(self):
+        return (255, 255, 255)
 
 if __name__ == "__main__":
-    jogo = FormaTower()
-    final_score = jogo.run()
-    print(f"Pontuação final: {final_score}")
-
+    game = StackGame()
+    final_score = game.run()
+    print(f"Score final: {final_score}")

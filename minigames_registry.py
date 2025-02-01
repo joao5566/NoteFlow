@@ -6,7 +6,7 @@ from minigames.defender import DefesaDasFormas
 from minigames.flappy import FlappyPetGame
 from minigames.memory import MemoryGame1 as MemoryGame1
 from minigames.memory_game import MemoryGame as MemoryGame
-
+from minigames.forma_tower import StackGame as IceTowerGame
 from minigames.pong import PongGame
 from minigames.snake_game import SnakeGame
 
@@ -37,8 +37,8 @@ def get_minigames():
             "file": "defender.py",
             "class": DefesaDasFormas,
             "icon": "game_icons/defender.png",
-            "xp_reward_interval": {"points": 10, "xp": 1},
-            "coin_reward_interval": {"points": 10, "coins": 1},
+            "xp_reward_interval": {"points": 5, "xp": 1},
+            "coin_reward_interval": {"points": 5, "coins": 1},
         },
         {
             "id": "flappy",
@@ -46,8 +46,8 @@ def get_minigames():
             "file": "flappy.py",
             "class": FlappyPetGame,
             "icon": "game_icons/flappy.png",
-            "xp_reward_interval": {"points": 1, "xp": 1},
-            "coin_reward_interval": {"points": 5, "coins": 1},
+            "xp_reward_interval": {"points": 1, "xp": 10},
+            "coin_reward_interval": {"points": 1, "coins": 5},
         },
         {
             "id": "memory_1",
@@ -82,7 +82,16 @@ def get_minigames():
             "file": "snake_game.py",
             "class": SnakeGame,
             "icon": "game_icons/snake.png",
-            "xp_reward_interval": {"points": 10, "xp": 1},
-            "coin_reward_interval": {"points": 10, "coins": 1},
+            "xp_reward_interval": {"points": 1, "xp": 1},
+            "coin_reward_interval": {"points": 1, "coins": 1},
+        },
+        {
+            "id": "formaTower",
+            "name": "Forma Tower",
+            "file": "forma_tower.py",
+            "class": IceTowerGame,
+            "icon": "game_icons/stack.png",
+            "xp_reward_interval": {"points": 1, "xp": 5},
+            "coin_reward_interval": {"points": 1, "coins": 10},
         },
     ]
