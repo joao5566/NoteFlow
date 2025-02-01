@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('shop_items', 'shop_items'), ('images', 'images'), ('game_icons', 'game_icons')],
+    datas=[('game_icons', 'game_icons'), ('images', 'images'), ('shop_items', 'shop_items')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
