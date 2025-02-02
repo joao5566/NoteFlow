@@ -6,9 +6,11 @@ class SlidingPuzzleGame:
     def __init__(self):
         pygame.init()
         pygame.font.init()
+        
         self.largura = 1280
         self.altura = 720
-        self.tela = pygame.display.set_mode((self.largura, self.altura))  # Janela com resolução fixa
+        # Cria a janela com resolução fixa inicial, mas redimensionável
+        self.tela = pygame.display.set_mode((self.largura, self.altura), pygame.RESIZABLE)
         pygame.display.set_caption("Puzzle Deslizante")
         self.relogio = pygame.time.Clock()
         self.fps = 30
@@ -79,6 +81,8 @@ class SlidingPuzzleGame:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.estado = "sair"
+            elif event.type == pygame.VIDEORESIZE:
+                self.redimensionar(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     self.board_size = 3
@@ -91,6 +95,7 @@ class SlidingPuzzleGame:
                     self.estado = "game"
 
     def iniciar_jogo(self):
+        # Define o tamanho das células de acordo com a resolução atual
         self.cell_size = min(self.largura, self.altura) // self.board_size
         self.board = self.gerar_tabuleiro_solved(self.board_size)
         self.blank_pos = (self.board_size - 1, self.board_size - 1)
@@ -108,13 +113,20 @@ class SlidingPuzzleGame:
                 pygame.draw.rect(self.tela, self.cor_grid, rect, 2)
                 if val != 0:
                     texto = self.fonte_game.render(str(val), True, self.cor_texto)
-                    self.tela.blit(texto, (c * self.cell_size + (self.cell_size - texto.get_width()) // 2,
-                                             r * self.cell_size + (self.cell_size - texto.get_height()) // 2))
+                    self.tela.blit(
+                        texto,
+                        (
+                            c * self.cell_size + (self.cell_size - texto.get_width()) // 2,
+                            r * self.cell_size + (self.cell_size - texto.get_height()) // 2
+                        )
+                    )
 
     def processar_eventos_game(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.estado = "sair"
+            elif event.type == pygame.VIDEORESIZE:
+                self.redimensionar(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.estado = "sair"
@@ -125,6 +137,14 @@ class SlidingPuzzleGame:
                 if self.adjacente_ao_blank(row, col):
                     self.mover_bloco(row, col)
                     self.score += 1
+
+    def redimensionar(self, nova_largura, nova_altura):
+        """Atualiza a resolução e reajusta o tamanho das células do tabuleiro."""
+        self.largura, self.altura = nova_largura, nova_altura
+        self.tela = pygame.display.set_mode((self.largura, self.altura), pygame.RESIZABLE)
+        # Se o jogo já foi iniciado, recalcula o tamanho das células
+        if self.board_size is not None:
+            self.cell_size = min(self.largura, self.altura) // self.board_size
 
     def adjacent_positions(self, row, col):
         positions = []
@@ -182,6 +202,7 @@ class SlidingPuzzleGame:
                 self.relogio.tick(self.fps)
             elif self.estado == "game_over":
                 self.desenhar_game_over()
+                # Define o score final de acordo com a dificuldade
                 if self.board_size == 3:
                     self.score = 10
                 elif self.board_size == 4:
