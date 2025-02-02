@@ -1,6 +1,7 @@
 {
     "plugins": [
         "C:\\Users\\joao2\\NoteFlow\\plugins\\paint_plugin\\main.py",
+        "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_flashcards\\main.py",
         "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_help\\main.py"
     ]
 }

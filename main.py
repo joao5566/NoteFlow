@@ -39,6 +39,7 @@ from stats_module import StatsWidget
 from day_notes_dialog import DayNotesDialog
 from kanban_tab import KanbanTab
 from mind_map_tab import MindMapTab
+from plugin_libs import QtWidgets, np, pd, plt, requests
 
 # Importa a classe base para plugins
 from plugin_base import PluginTab
