@@ -7,17 +7,21 @@ class StackGame:
         pygame.init()
         pygame.font.init()
         
-        # Resolução fixa
-        self.largura = 1280
-        self.altura = 720
-        self.tela = pygame.display.set_mode((self.largura, self.altura))
+        # Define a resolução dinâmica usando as informações do display
+        info = pygame.display.Info()
+        self.largura = info.current_w
+        self.altura = info.current_h
+        
+        # Cria a tela em modo FULLSCREEN (para maximizar a janela)
+        self.tela = pygame.display.set_mode((self.largura, self.altura), pygame.FULLSCREEN)
         pygame.display.set_caption("Stack!")
         self.relogio = pygame.time.Clock()
         self.fps = 30
 
-        # Parâmetros dos blocos
-        self.altura_bloco = 30
-        self.largura_bloco_inicial = 300
+        # Define os parâmetros dos blocos proporcionalmente à resolução
+        # Usando a resolução base 1280x720 para referência
+        self.altura_bloco = int(self.altura * 30 / 720)
+        self.largura_bloco_inicial = int(self.largura * 300 / 1280)
 
         # Função para gerar uma cor aleatória
         self.random_color = lambda: (random.randint(50, 255), random.randint(50, 255), random.randint(50, 255))
@@ -42,7 +46,7 @@ class StackGame:
             "color": self.random_color()
         }
         self.block_direction = 1  # 1 = direita, -1 = esquerda
-        self.block_speed = 8
+        self.block_speed = 8 * (self.largura / 1280)  # ajusta a velocidade proporcionalmente
 
         # Partículas: lista de dicionários com x, y, dx, dy e lifetime
         self.particles = []
@@ -77,7 +81,6 @@ class StackGame:
     def desenhar_particulas(self):
         """Desenha as partículas na tela."""
         for particle in self.particles:
-            # Desenha partículas como pequenos círculos
             pygame.draw.circle(self.tela, particle["color"], (int(particle["x"]), int(particle["y"])), 3)
 
     def processar_eventos(self):
@@ -109,8 +112,8 @@ class StackGame:
             return
 
         # Cria partículas no local do drop
-        self.criar_particulas(self.current_block["x"] + self.current_block["largura"]//2,
-                               self.current_block["y"] + self.current_block["altura"]//2,
+        self.criar_particulas(self.current_block["x"] + self.current_block["largura"] // 2,
+                               self.current_block["y"] + self.current_block["altura"] // 2,
                                self.current_block["color"])
 
         # Atualiza o bloco atual com a área de sobreposição
@@ -130,8 +133,8 @@ class StackGame:
             "altura": self.altura_bloco,
             "color": self.random_color()
         }
-        # Aumenta a velocidade para dificultar
-        self.block_speed = min(self.block_speed + 0.5, 20)
+        # Aumenta a velocidade para dificultar (ajustada proporcionalmente)
+        self.block_speed = min(self.block_speed + 0.5 * (self.largura / 1280), 20 * (self.largura / 1280))
         # Reinicia a direção para a direita
         self.block_direction = 1
 
@@ -140,7 +143,7 @@ class StackGame:
 
     def atualizar_camera(self):
         """Se o bloco atual estiver muito próximo do topo, desloca toda a pilha para baixo."""
-        threshold = 100
+        threshold = 100 * (self.altura / 720)
         if self.current_block["y"] < threshold:
             desloc = threshold - self.current_block["y"]
             for bloco in self.stack:
@@ -179,7 +182,7 @@ class StackGame:
         self.desenhar_particulas()
 
         # Exibe o score
-        fonte = pygame.font.SysFont(None, 48)
+        fonte = pygame.font.SysFont(None, int(48 * (self.largura / 1280)))
         texto_score = fonte.render(f"Score: {self.score}", True, self.cor_texto)
         self.tela.blit(texto_score, (10, 10))
 
@@ -198,7 +201,7 @@ class StackGame:
 
             # Se o jogo estiver pausado, exibe mensagem central
             if self.jogo_pausado:
-                fonte_pause = pygame.font.SysFont(None, 48)
+                fonte_pause = pygame.font.SysFont(None, int(48 * (self.largura / 1280)))
                 msg = fonte_pause.render("Pressione SPACE para começar", True, self.cor_texto)
                 pos_x = self.largura // 2 - msg.get_width() // 2
                 pos_y = self.altura // 2 - msg.get_height() // 2
