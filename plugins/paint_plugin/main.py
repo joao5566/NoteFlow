@@ -9,17 +9,17 @@ root_dir = os.path.abspath(os.path.join(current_dir, "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from plugin_help_tab import PluginHelpTab
+from paint_plugin import PluginPixelArtTab
 
 # Define a variável global que será usada como ponto de entrada do plugin
-plugin_class = PluginHelpTab
+plugin_class = PluginPixelArtTab
 
 # Se desejar, você pode definir também uma função para testar o plugin de forma independente:
 def main():
     from PyQt5.QtWidgets import QApplication
     app = QApplication(sys.argv)
-    window = PluginHelpTab()
-    window.setWindowTitle("Ajuda Plugins")
+    window = PluginPixelArtTab()
+    window.setWindowTitle("Pixel art")
     window.show()
     sys.exit(app.exec_())
 
