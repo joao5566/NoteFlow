@@ -32,7 +32,7 @@ var/
 # Outros arquivos temporários
 *.log
 *.tmp
-.db
+*.db
 
 # Ignorar arquivos AppImage
 MyApp-x86_64.AppImage
