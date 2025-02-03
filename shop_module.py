@@ -12,7 +12,7 @@ import os
 import json
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+
 
 def load_shop_items():
     items = []
@@ -809,8 +809,7 @@ class ShopModule(QWidget):
         self.pet_game.save_pet_status()
         self.refresh_shop()
 
-        # Log para depuração
-        logging.debug(f"Acessórios equipados após equipar '{item.get('name')}': {self.pet_game.equipped_accessories}")
+        
 
     def use_consumable(self, item):
         consumable_type = item.get("consumable_type")
@@ -982,6 +981,5 @@ class ShopModule(QWidget):
         self.pet_game.save_pet_status()
         self.refresh_shop()
 
-        # Log para depuração
-        logging.debug(f"Acessórios equipados após adicionar '{item.get('name')}': {self.pet_game.equipped_accessories}")
+        
 

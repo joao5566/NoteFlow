@@ -246,7 +246,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QUrl, QDate, Qt
 from PyQt5.QtGui import QIcon, QPixmap
-
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+import pyttsx3 
 # Lista de objetos exportados para facilitar a importação
 __all__ = [
     # Utilitários

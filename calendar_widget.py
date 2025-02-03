@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # calendar_widget.py
 
 # Importações padrão
@@ -18,6 +19,7 @@ from PyQt5.QtCore import QDate, Qt, QTimer
 
 import sqlite3
 import random
+import pyttsx3
 
 # Importações locais
 from persistence_module import (
@@ -39,7 +41,7 @@ from stats_module import StatsWidget
 from day_notes_dialog import DayNotesDialog
 from kanban_tab import KanbanTab
 from mind_map_tab import MindMapTab
-from plugin_libs import QtWidgets, np, pd, plt, requests
+import plugin_libs
 
 # Importa a classe base para plugins
 from plugin_base import PluginTab
@@ -172,7 +174,6 @@ class PluginManagerDialog(QDialog):
 
     def atualizar_lista_plugins(self):
         """Atualiza a lista de plugins e fecha o app, sem reiniciar automaticamente."""
-        # Certifica que a pasta de plugins existe
         if not os.path.exists(self.plugin_folder):
             os.makedirs(self.plugin_folder)
 
@@ -182,24 +183,16 @@ class PluginManagerDialog(QDialog):
             if os.path.isdir(item_path):
                 main_file = os.path.join(item_path, "main.py")
                 if os.path.exists(main_file):
-                    # Usa o caminho absoluto para garantir a consistência
                     abs_path = os.path.abspath(main_file)
                     novos_plugins.append(abs_path)
 
-        # Salva a nova lista no JSON
         save_plugin_config(novos_plugins)
-
-        # Atualiza a lista exibida no diálogo
         self.populate_list()
-
-        # Exibe mensagem informando que o usuário deve reiniciar manualmente
         QMessageBox.information(
             self,
             "Atualizado",
             "A lista de plugins foi atualizada. Por favor, reinicie o aplicativo manualmente."
         )
-
-        # Fecha o aplicativo ao invés de reiniciar automaticamente
         self.parent_app.close()
 
     def add_plugin(self):
@@ -255,12 +248,15 @@ class CalendarApp(QMainWindow):
         # Carrega os plugins persistidos dinamicamente
         self.load_persistent_plugins()
 
-        # Garante que a aba do Calendário seja a aba ativa na inicialização
+        # Garante que a aba do Calendário seja a ativa na inicialização
         self.tabs.setCurrentWidget(self.calendar_tab)
 
     # ------------------------------
     # Métodos de Tema
     # ------------------------------
+
+
+
     def ensure_theme_integrity(self, theme):
         default_theme = {
             "background": "#ffffff",
@@ -295,75 +291,8 @@ class CalendarApp(QMainWindow):
         QApplication.setFont(font)
 
     # ------------------------------
-    # Inicialização da Interface
-    # ------------------------------
-    def init_ui(self):
-        self.setWindowIcon(QIcon('icone.ico'))
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+    # Inicialização da Interface com Lazy Load nas Abas
 
-        self.motivation_label = QLabel("", self)
-        self.motivation_label.setStyleSheet("font-size: 18px; color: green;")
-        self.layout.addWidget(self.motivation_label)
-        
-        self.tabs = QTabWidget(self)
-        self.layout.addWidget(self.tabs)
-
-        # Abas padrão
-        self.init_calendar_tab()
-        self.init_notes_tab()
-        self.init_tasks_tab()
-        self.init_stats_tab()
-        self.init_excel_tab()
-        self.init_pet_game_tab()
-        self.init_kanban_tab()
-        self.init_mind_map_tab()
-        
-        self.init_menu()
-        self.refresh_calendar()
-
-    def init_mind_map_tab(self):
-        mind_map_tab = MindMapTab(self)
-        self.tabs.addTab(mind_map_tab, "Editor de Texto")
-
-    def init_calendar_tab(self):
-        self.calendar_tab = QWidget()
-        self.calendar_layout = QVBoxLayout(self.calendar_tab)
-        self.tabs.addTab(self.calendar_tab, "Calendário")
-
-        self.controls_layout = QHBoxLayout()
-        self.search_input = QLineEdit(self)
-        self.search_input.setPlaceholderText("Pesquisar notas...")
-        self.search_input.textChanged.connect(self.search_notes)
-        self.controls_layout.addWidget(self.search_input)
-
-        self.month_selector = QComboBox(self)
-        self.month_selector.addItems([
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ])
-        self.month_selector.setCurrentIndex(self.current_date.month() - 1)
-        self.month_selector.currentIndexChanged.connect(self.update_calendar)
-        self.controls_layout.addWidget(self.month_selector)
-
-        self.year_selector = QSpinBox(self)
-        self.year_selector.setRange(1900, 2100)
-        self.year_selector.setValue(self.current_date.year())
-        self.year_selector.valueChanged.connect(self.update_calendar)
-        self.controls_layout.addWidget(self.year_selector)
-
-        self.calendar_layout.addLayout(self.controls_layout)
-
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area_widget = QWidget()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setWidget(self.scroll_area_widget)
-        self.calendar_layout.addWidget(self.scroll_area)
-
-        self.calendar_grid_layout = QGridLayout(self.scroll_area_widget)
-        self.scroll_area_widget.setLayout(self.calendar_grid_layout)
-    
     def show_random_motivation_label(self):
         motivations = [
             "Continue se esforçando!",
@@ -400,30 +329,151 @@ class CalendarApp(QMainWindow):
         message = random.choice(motivations)
         self.motivation_label.setText(message)
 
-    def init_notes_tab(self):
+    # ------------------------------
+    def init_ui(self):
+        self.setWindowIcon(QIcon('icone.ico'))
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.layout = QVBoxLayout(self.central_widget)
+
+        self.motivation_label = QLabel("", self)
+        self.motivation_label.setStyleSheet("font-size: 18px; color: green;")
+        self.layout.addWidget(self.motivation_label)
+        
+        self.tabs = QTabWidget(self)
+        self.layout.addWidget(self.tabs)
+
+        # Carrega imediatamente a aba Calendário (essencial)
+        self.init_calendar_tab()
+
+        # Define as demais abas para carregamento sob demanda (lazy load)
+        # Mapeia o título da aba à função de inicialização correspondente
+        self.lazy_tabs = {
+            "Tabela de Notas": self.init_notes_tab,
+            "Tabela de Tarefas": self.init_tasks_tab,
+            "Estatísticas": self.init_stats_tab,
+            "Planilha Simples": self.init_excel_tab,
+            "Mascote Virtual": self.init_pet_game_tab,
+            "Kanban": self.init_kanban_tab,
+            "Editor de Texto": self.init_mind_map_tab
+        }
+        # Cria abas placeholder para cada uma das abas lazy
+        for tab_name in self.lazy_tabs:
+            placeholder = QWidget()
+            placeholder.loaded = False  # marca como não carregado
+            self.tabs.addTab(placeholder, tab_name)
+        # Conecta o sinal para detectar mudança de aba
+        self.tabs.currentChanged.connect(self.on_tab_changed)
+
+        self.init_menu()
+        self.refresh_calendar()
+
+    def on_tab_changed(self, index):
+        """Quando o usuário muda de aba, carrega seu conteúdo se ainda não estiver carregado."""
+        tab_name = self.tabs.tabText(index)
+        if tab_name in self.lazy_tabs:
+            current_widget = self.tabs.widget(index)
+            if not getattr(current_widget, "loaded", False):
+                new_widget = self.lazy_tabs[tab_name](lazy=True)
+                new_widget.loaded = True
+                self.tabs.removeTab(index)
+                self.tabs.insertTab(index, new_widget, tab_name)
+                self.tabs.setCurrentIndex(index)
+
+    # ------------------------------
+    # Funções de Inicialização das Abas
+    # Cada função aceita o parâmetro lazy (se True, apenas retorna o widget)
+    # ------------------------------
+    def init_calendar_tab(self, lazy=False):
+        self.calendar_tab = QWidget()
+        self.calendar_layout = QVBoxLayout(self.calendar_tab)
+        # Controles de pesquisa, mês e ano
+        self.controls_layout = QHBoxLayout()
+        self.search_input = QLineEdit(self)
+        self.search_input.setPlaceholderText("Pesquisar notas...")
+        self.search_input.textChanged.connect(self.search_notes)
+        self.controls_layout.addWidget(self.search_input)
+
+        self.month_selector = QComboBox(self)
+        self.month_selector.addItems([
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ])
+        self.month_selector.setCurrentIndex(self.current_date.month() - 1)
+        self.month_selector.currentIndexChanged.connect(self.update_calendar)
+        self.controls_layout.addWidget(self.month_selector)
+
+        self.year_selector = QSpinBox(self)
+        self.year_selector.setRange(1900, 2100)
+        self.year_selector.setValue(self.current_date.year())
+        self.year_selector.valueChanged.connect(self.update_calendar)
+        self.controls_layout.addWidget(self.year_selector)
+
+        self.calendar_layout.addLayout(self.controls_layout)
+
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area_widget = QWidget()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(self.scroll_area_widget)
+        self.calendar_layout.addWidget(self.scroll_area)
+
+        self.calendar_grid_layout = QGridLayout(self.scroll_area_widget)
+        self.scroll_area_widget.setLayout(self.calendar_grid_layout)
+        
+        if not lazy:
+            self.tabs.addTab(self.calendar_tab, "Calendário")
+        else:
+            return self.calendar_tab
+
+    def init_notes_tab(self, lazy=False):
         self.notes_tab = NotesTableWidget(self)
         self.notes_tab.load_notes(self.notes)
-        self.tabs.addTab(self.notes_tab, "Tabela de Notas")
-    
-    def init_tasks_tab(self):
-        self.tasks_tab = TasksTableWidget(self)
-        self.tabs.addTab(self.tasks_tab, "Tabela de Tarefas")
+        if not lazy:
+            self.tabs.addTab(self.notes_tab, "Tabela de Notas")
+        else:
+            return self.notes_tab
 
-    def init_stats_tab(self):
+    def init_tasks_tab(self, lazy=False):
+        self.tasks_tab = TasksTableWidget(self)
+        if not lazy:
+            self.tabs.addTab(self.tasks_tab, "Tabela de Tarefas")
+        else:
+            return self.tasks_tab
+
+    def init_stats_tab(self, lazy=False):
         self.stats_tab = StatsWidget(self)
-        self.tabs.addTab(self.stats_tab, "Estatísticas")
-    
-    def init_kanban_tab(self):
-        self.kanban_tab = KanbanTab(self)
-        self.tabs.addTab(self.kanban_tab, "Kanban")
-    
-    def init_excel_tab(self):
+        if not lazy:
+            self.tabs.addTab(self.stats_tab, "Estatísticas")
+        else:
+            return self.stats_tab
+
+    def init_excel_tab(self, lazy=False):
         self.excel_tab = SimpleExcelWidget(self)
-        self.tabs.addTab(self.excel_tab, "Planilha Simples")
-    
-    def init_pet_game_tab(self):
+        if not lazy:
+            self.tabs.addTab(self.excel_tab, "Planilha Simples")
+        else:
+            return self.excel_tab
+
+    def init_pet_game_tab(self, lazy=False):
         self.pet_game_tab = PetGameModule(self)
-        self.tabs.addTab(self.pet_game_tab, "Mascote Virtual")
+        if not lazy:
+            self.tabs.addTab(self.pet_game_tab, "Mascote Virtual")
+        else:
+            return self.pet_game_tab
+
+    def init_kanban_tab(self, lazy=False):
+        self.kanban_tab = KanbanTab(self)
+        if not lazy:
+            self.tabs.addTab(self.kanban_tab, "Kanban")
+        else:
+            return self.kanban_tab
+
+    def init_mind_map_tab(self, lazy=False):
+        self.mind_map_tab = MindMapTab(self)
+        if not lazy:
+            self.tabs.addTab(self.mind_map_tab, "Editor de Texto")
+        else:
+            return self.mind_map_tab
 
     # ------------------------------
     # Configuração do Menu
@@ -481,7 +531,6 @@ class CalendarApp(QMainWindow):
     # ------------------------------
     def load_plugin_file(self, plugin_file):
         try:
-            # Adiciona o diretório do plugin temporariamente ao sys.path
             plugin_dir = os.path.dirname(plugin_file)
             if plugin_dir not in sys.path:
                 sys.path.insert(0, plugin_dir)
@@ -491,14 +540,10 @@ class CalendarApp(QMainWindow):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             
-            # Remove o diretório do plugin do sys.path (opcional)
             if plugin_dir in sys.path:
                 sys.path.remove(plugin_dir)
             
-            # Primeiro, tenta obter a classe via o atributo 'plugin_class'
             plugin_class = getattr(module, "plugin_class", None)
-            
-            # Se não estiver definido, procura por uma classe que herde de PluginTab
             if plugin_class is None:
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
@@ -511,11 +556,9 @@ class CalendarApp(QMainWindow):
                 return
 
             plugin_instance = plugin_class(self)
-            # Adiciona a nova aba e força sua seleção
             self.tabs.addTab(plugin_instance, plugin_instance.name)
             self.tabs.setCurrentWidget(plugin_instance)
             
-            # Registra o plugin na configuração persistente
             plugins_list = load_plugin_config()
             if plugin_file not in plugins_list:
                 plugins_list.append(plugin_file)
@@ -524,18 +567,15 @@ class CalendarApp(QMainWindow):
             QMessageBox.critical(self, "Erro ao carregar plugin", f"Ocorreu um erro:\n{e}")
 
     def load_plugin(self):
-        """Abre um diálogo para selecionar um plugin (arquivo .py) e carrega-o."""
         plugin_file, _ = QFileDialog.getOpenFileName(self, "Selecione o arquivo do plugin", "", "Python Files (*.py)")
         if plugin_file:
             self.load_plugin_file(plugin_file)
 
     def open_plugin_manager(self):
-        """Abre o diálogo do Gerenciador de Plugins."""
         dlg = PluginManagerDialog(self)
         dlg.exec_()
 
     def load_persistent_plugins(self):
-        """Carrega todos os plugins registrados no arquivo de configuração."""
         plugins_list = load_plugin_config()
         for plugin_file in plugins_list:
             if os.path.exists(plugin_file):
@@ -544,7 +584,7 @@ class CalendarApp(QMainWindow):
                 print(f"Arquivo de plugin não encontrado: {plugin_file}")
 
     # ------------------------------
-    # Métodos de Calendário
+    # Métodos de Calendário e Diálogos
     # ------------------------------
     def refresh_calendar(self):
         self.notes = load_notes()
@@ -583,9 +623,6 @@ class CalendarApp(QMainWindow):
         else:
             button.setStyleSheet(f"background-color: {self.theme['background']}; color: {self.theme['text']};")
 
-    # ------------------------------
-    # Métodos de Diálogo
-    # ------------------------------
     def open_theme_dialog(self):
         dialog = ThemeDialog(self.theme, self)
         if dialog.exec_() == QDialog.Accepted:
@@ -617,9 +654,6 @@ class CalendarApp(QMainWindow):
                     conn.commit()
                 self.reminders = load_reminders()
 
-    # ------------------------------
-    # Métodos de Busca
-    # ------------------------------
     def search_notes(self, text):
         for i in range(self.calendar_grid_layout.count()):
             button = self.calendar_grid_layout.itemAt(i).widget()
@@ -628,14 +662,11 @@ class CalendarApp(QMainWindow):
                 date = QDate(self.current_date.year(), self.current_date.month(), day)
                 date_str = date.toString("yyyy-MM-dd")
                 notes = self.notes.get(date_str, [])
-                if any(text.lower() in self.strip_html(note['text']).lower() for note in notes):
+                if any(text.lower() in note['text'].lower() for note in notes):
                     button.setStyleSheet(f"background-color: {self.theme['marked_day']}; color: {self.theme['text']};")
                 else:
                     self.style_button(button, date_str)
 
-    # ------------------------------
-    # Métodos de Lembretes e Tarefas
-    # ------------------------------
     def check_reminders(self):
         today_str = QDate.currentDate().toString("yyyy-MM-dd")
         with sqlite3.connect(DB_PATH) as conn:
@@ -670,7 +701,6 @@ def main():
     if os.path.exists(splash_image):
         pixmap = QPixmap(splash_image)
     else:
-        # Cria um pixmap simples caso não haja imagem
         pixmap = QPixmap(400, 300)
         pixmap.fill(QColor("white"))
     
@@ -679,11 +709,9 @@ def main():
     splash.show()
     app.processEvents()
     
-    # Inicializa a janela principal
     window = CalendarApp()
     window.show()
     app.setStyle("Fusion")
-    # Fecha a splash screen quando o app estiver pronto
     splash.finish(window)
     
     sys.exit(app.exec_())
