@@ -632,12 +632,15 @@ class CalendarApp(QMainWindow):
             save_theme(self.theme)
 
     def open_note_dialog(self, note_date):
-        day_notes = self.notes.get(note_date, [])
+        # Recarrega todas as notas do DB para garantir que estão atualizadas
+        all_notes = load_notes()
+        day_notes = all_notes.get(note_date, [])
         dialog = DayNotesDialog(self, note_date, day_notes)
         dialog.setModal(False)  # Torna o diálogo não modal
         # Conecta o sinal 'finished' para tratar quando o diálogo for fechado
         dialog.finished.connect(lambda result, d=dialog, nd=note_date: self.after_note_dialog(result, d, nd))
         dialog.show()
+
 
     def after_note_dialog(self, result, dialog, note_date):
         # Se o usuário fechou o diálogo com "Aceitar"

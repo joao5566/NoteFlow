@@ -1,3 +1,4 @@
+#persistence_module.py
 import sqlite3
 import os
 from PyQt5.QtCore import QDate
@@ -212,17 +213,19 @@ def save_notes(notes):
                 categories = ",".join(note.get("categories", []))
                 tags = ",".join(note.get("tags", []))
                 custom_css = note.get("custom_css", "")
+                is_markdown = note.get("is_markdown", 0)
                 if note_id in existing_ids:
                     cursor.execute(
-                        "UPDATE notes SET date = ?, text = ?, raw_text = ?, categories = ?, tags = ?, custom_css = ? WHERE id = ?",
-                        (date, text, raw_text, categories, tags, custom_css, note_id)
+                        "UPDATE notes SET date = ?, text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ?, custom_css = ? WHERE id = ?",
+                        (date, text, raw_text, categories, tags, is_markdown, custom_css, note_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO notes (date, text, raw_text, categories, tags, custom_css) VALUES (?, ?, ?, ?, ?, ?)",
-                        (date, text, raw_text, categories, tags, custom_css)
+                        "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (date, text, raw_text, categories, tags, is_markdown, custom_css)
                     )
         conn.commit()
+
 
 def add_font_size_column():
     """Adiciona a coluna 'font_size' na tabela 'theme' se ela não existir."""

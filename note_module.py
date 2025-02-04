@@ -444,27 +444,35 @@ class NoteDialog(QDialog):
 
     def handle_save(self):
         if self.validate_note_data():
-            if self.is_markdown_mode:
-                raw_content = self.note_edit.toPlainText()
-                html_content = raw_content
-            else:
-                html_content = self.note_edit.toHtml()
-                raw_content = ""
-            categories = ",".join(cat.strip() for cat in self.category_input.text().split(",") if cat.strip())
-            tags = ",".join(tag.strip() for tag in self.tags_input.text().split(",") if tag.strip())
-            with sqlite3.connect("data.db") as conn:
-                cursor = conn.cursor()
-                if self.mode == "edit" and hasattr(self, 'note_id'):
-                    cursor.execute(
-                        "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ?, custom_css = ? WHERE id = ?",
-                        (html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css, self.note_id)
-                    )
+            # Para evitar conflitos, interrompe o auto save antes de salvar manualmente.
+            if hasattr(self, 'auto_save_timer'):
+                self.auto_save_timer.stop()
+            try:
+                if self.is_markdown_mode:
+                    raw_content = self.note_edit.toPlainText()
+                    # Converte o Markdown para HTML para exibição posterior.
+                    html_content = markdown.markdown(raw_content, extensions=['fenced_code', 'codehilite', 'nl2br'])
                 else:
-                    cursor.execute(
-                        "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (self.note_date, html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css)
-                    )
-                conn.commit()
+                    html_content = self.note_edit.toHtml()
+                    raw_content = ""
+                categories = ",".join(cat.strip() for cat in self.category_input.text().split(",") if cat.strip())
+                tags = ",".join(tag.strip() for tag in self.tags_input.text().split(",") if tag.strip())
+                with sqlite3.connect("data.db") as conn:
+                    cursor = conn.cursor()
+                    if self.mode == "edit" and hasattr(self, 'note_id'):
+                        cursor.execute(
+                            "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ?, custom_css = ? WHERE id = ?",
+                            (html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css, self.note_id)
+                        )
+                    else:
+                        cursor.execute(
+                            "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (self.note_date, html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css)
+                        )
+                    conn.commit()
+            except Exception as e:
+                QMessageBox.critical(self, "Erro", f"Ocorreu um erro ao salvar a nota: {e}")
+                return
             QMessageBox.information(self, "Sucesso", "Nota salva com sucesso.")
             self.accept()
 
@@ -550,13 +558,24 @@ class NoteDialog(QDialog):
 
     def get_note_data(self):
         tags = [tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()]
-        note_text = self.note_edit.toPlainText() if self.is_markdown_mode else self.get_current_content()
-        return {
-            "text": note_text,
-            "categories": [cat.strip() for cat in self.category_input.text().split(",") if cat.strip()],
-            "tags": tags,
-            "custom_css": self.header_css
-        }
+        if self.is_markdown_mode:
+            # Retorna o conteúdo _raw_ para que o editor possa reabrir em Markdown.
+            note_text = self.note_edit.toPlainText()
+            return {
+                "text": note_text,
+                "raw_text": note_text,
+                "categories": [cat.strip() for cat in self.category_input.text().split(",") if cat.strip()],
+                "tags": tags,
+                "custom_css": self.header_css
+            }
+        else:
+            note_text = self.get_current_content()
+            return {
+                "text": note_text,
+                "categories": [cat.strip() for cat in self.category_input.text().split(",") if cat.strip()],
+                "tags": tags,
+                "custom_css": self.header_css
+            }
 
     def set_note_data(self, data):
         is_md = int(data.get("is_markdown", 0))
@@ -595,6 +614,7 @@ class NoteDialog(QDialog):
             self.is_markdown_mode = True
             self.markdown_layout_combo.setVisible(True)
             
+            # Armazena o conteúdo atual para repassar ao novo widget.
             current_text = self.note_edit.toPlainText()
             
             if self.draggable_container:

@@ -1,12 +1,4 @@
-<style>h1 {
-color: blue;
-text-align: center;
-font-size: 60px;t-family: Arial, sans-serif;
-}
 
-p {
-font-size: 30px;
-}</style>
                 <style>
                     .preview {
                         font-size: 12px;
@@ -42,10 +34,38 @@ font-size: 30px;
                     }
                     .codehilite .hll { background-color: #ffffcc; }
                 </style>
-            <div class='preview'><h1>Titulo</h1>
-<p>teste teste testte teste<br />
-te<br />
-etet<br />
-et</p>
-<p>ettet</p>
-<p>tetetet</p></div>
+            <div class='preview'><h1>Estoudo  sobre Ponteiros no C++</h1>
+<div class="paragrafo"><p>Os ponteiros em C++ permitem manipular a mesmoria de modo dinamico então programador pode alocar e desalocar memoria manualmente assim podendo ter um codigo mais performance se souber oque está fazendo ou ter problemas de vazamento de memoria se não souber oque esta fazendo.</p></div>
+
+<h2>1. O que é um Ponteiro?</h2>
+<p>Um ponteiro é uma variável que armazena o endereço de memória de outra variável.<br />
+Declaração de Ponteiros:</p>
+<pre class="codehilite"><code>int x = 10;
+int* ptr = &amp;x;  // ptr armazena o endereço de x
+</code></pre>
+
+<p>Aqui, <code>ptr</code> é um ponteiro para um <code>int</code> e guarda o endereço de x.</p>
+<h2>2. Ponteiros e Arrays</h2>
+<p>Em C++, o nome de um array é um ponteiro para seu primeiro elemento.</p>
+<pre class="codehilite"><code>int arr[] = {1, 2, 3, 4, 5};
+int* ptr = arr; // ptr aponta para arr[0]
+
+std::cout &lt;&lt; &quot;Primeiro elemento: &quot; &lt;&lt; *ptr &lt;&lt; std::endl;  // 1
+std::cout &lt;&lt; &quot;Segundo elemento: &quot; &lt;&lt; *(ptr + 1) &lt;&lt; std::endl; // 2
+</code></pre>
+
+<p>O deslocamento <code>(ptr + 1)</code> move o ponteiro para o próximo elemento.</p>
+<h2>3. Ponteiros e Alocação Dinâmic</h2>
+<p>Os ponteiros permitem alocar memória dinamicamente durante a execução usando <code>`new</code> e liberar com <code>delete.</code></p>
+<pre class="codehilite"><code>int* ptr = new int(10); // Aloca um int dinamicamente
+std::cout &lt;&lt; &quot;Valor: &quot; &lt;&lt; *ptr &lt;&lt; std::endl;
+delete ptr; // Libera a memória
+</code></pre>
+
+<p>Para arrays:</p>
+<pre class="codehilite"><code>int* arr = new int[5]; // Aloca um array de 5 inteiros
+for (int i = 0; i &lt; 5; i++)
+    arr[i] = i * 10;
+
+delete[] arr; // Libera o array
+</code></pre></div>
