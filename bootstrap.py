@@ -3,7 +3,7 @@
 """
 Bootstrap para exibir a splash screen imediatamente e depois carregar o aplicativo.
 """
-
+from PyQt5.QtWebEngineWidgets import QWebEngineView 
 import sys
 import os
 from PyQt5.QtWidgets import QApplication, QSplashScreen

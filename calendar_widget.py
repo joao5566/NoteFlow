@@ -20,7 +20,7 @@ from PyQt5.QtCore import QDate, Qt, QTimer
 import sqlite3
 import random
 import pyttsx3
-from PyQt5.QtWebEngineWidgets import QWebEngineView
+
 
 # Importações locais
 from persistence_module import (
