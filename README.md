@@ -14,10 +14,76 @@ Um aplicativo de calendário interativo que permite gerenciar notas, tarefas, le
 
 ## Requisitos
 
-- Python 3.x
-- PyQt5
-- SQLite3
-- OpenPyxl (para exportação de planilhas)
+altgraph
+asteval
+attrs
+Automat
+beautifulsoup4
+certifi
+cffi
+charset-normalizer
+comtypes
+constantly
+contourpy
+cryptography
+cycler
+docstring-to-markdown
+et_xmlfile
+fonttools
+fpdf
+hyperlink
+idna
+incremental
+jedi
+jsonrpc
+kiwisolver
+lupa
+Markdown
+matplotlib
+numpy
+openpyxl
+packaging
+pandas
+parso
+pefile
+pillow
+pluggy
+pyarrow
+pyasn1
+pyasn1_modules
+pycparser
+pygame
+pyinstaller
+pyinstaller-hooks-contrib
+pylance
+pyOpenSSL
+pyparsing
+pypiwin32
+PyQt5
+PyQt5-Qt5
+PyQt5_sip
+PyQtWebEngine
+PyQtWebEngine-Qt5
+python-dateutil
+python-lsp-jsonrpc
+python-lsp-server
+python-vlc
+pyttsx3
+pytz
+pywin32
+pywin32-ctypes
+requests
+service-identity
+setuptools
+six
+soupsieve
+Twisted
+typing_extensions
+tzdata
+ujson
+urllib3
+zope.interface
+
 
 ## Instalação
 
