@@ -1,9 +1,6 @@
-# persistence_module.py
-
 import sqlite3
 import os
 from PyQt5.QtCore import QDate
-
 
 DB_PATH = "data.db"
 
@@ -11,7 +8,7 @@ def init_db():
     """Inicializa o banco de dados e cria as tabelas, se necessário."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Criar tabela de tarefas com ID único
+        # Tabela de tarefas
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,7 +18,7 @@ def init_db():
                 completion_date TEXT
             )
         ''')
-        # Criar tabela de lembretes com ID único
+        # Tabela de lembretes
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS reminders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,24 +26,26 @@ def init_db():
                 message TEXT
             )
         ''')
-        # Criar tabela de notas com ID único
+        # Tabela de notas (criada com as colunas antigas)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date TEXT,
                 text TEXT,
+                raw_text TEXT,
                 categories TEXT,
-                tags TEXT
+                tags TEXT,
+                is_markdown INTEGER DEFAULT 0
             )
         ''')
-        # Criar tabela de tema
+        # Tabela de tema
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS theme (
                 key TEXT PRIMARY KEY,
                 value TEXT
             )
         ''')
-         # Criar tabela de Kanban
+        # Tabela de Kanban - colunas e tarefas
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS kanban_columns (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +63,19 @@ def init_db():
             )
         ''')
         conn.commit()
+
+        # Atualiza a tabela de notas para incluir a coluna raw_text, se necessário
+        cursor.execute("PRAGMA table_info(notes)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if "raw_text" not in columns:
+            cursor.execute("ALTER TABLE notes ADD COLUMN raw_text TEXT")
+            conn.commit()
+         # Se a tabela já existir e não tiver a coluna is_markdown, adiciona-a:
+        cursor.execute("PRAGMA table_info(notes)")
+        columns = [column[1] for column in cursor.fetchall()]
+        if "is_markdown" not in columns:
+            cursor.execute("ALTER TABLE notes ADD COLUMN is_markdown INTEGER DEFAULT 0")
+            conn.commit()
 
 def load_tasks():
     """Carrega todas as tarefas do banco de dados."""
@@ -85,7 +97,7 @@ def save_tasks(tasks):
     """Salva todas as tarefas no banco de dados de forma eficiente."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Obter todas as IDs existentes no banco de dados
+        # Obter todas as IDs existentes
         cursor.execute("SELECT id FROM tasks")
         existing_ids = set(row[0] for row in cursor.fetchall())
 
@@ -95,7 +107,7 @@ def save_tasks(tasks):
         # IDs para deletar
         ids_to_delete = existing_ids - current_ids
 
-        # Deletar tarefas que não estão mais presentes
+        # Deletar tarefas não existentes
         if ids_to_delete:
             cursor.executemany("DELETE FROM tasks WHERE id = ?", [(task_id,) for task_id in ids_to_delete])
 
@@ -105,22 +117,18 @@ def save_tasks(tasks):
             completed = int(task.get("completed", False))
             creation_date = task.get("creation_date")
             completion_date = task.get("completion_date")
-
             if task_id in existing_ids:
-                # Atualizar tarefa existente
                 cursor.execute(
                     "UPDATE tasks SET name = ?, completed = ?, creation_date = ?, completion_date = ? WHERE id = ?",
                     (name, completed, creation_date, completion_date, task_id)
                 )
             else:
-                # Inserir nova tarefa
                 cursor.execute(
                     "INSERT INTO tasks (name, completed, creation_date, completion_date) VALUES (?, ?, ?, ?)",
                     (name, completed, creation_date, completion_date)
                 )
                 new_id = cursor.lastrowid
-                tasks[new_id] = task  # Atualizar o dicionário com o novo ID
-
+                tasks[new_id] = task
         conn.commit()
 
 def load_reminders():
@@ -141,56 +149,50 @@ def save_reminders(reminders):
     """Salva todos os lembretes no banco de dados de forma eficiente."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Obter todas as IDs existentes no banco de dados
         cursor.execute("SELECT id FROM reminders")
         existing_ids = set(row[0] for row in cursor.fetchall())
-
-        # Obter IDs atuais
         current_ids = set(reminders.keys())
-
-        # IDs para deletar
         ids_to_delete = existing_ids - current_ids
-
-        # Deletar lembretes que não estão mais presentes
         if ids_to_delete:
             cursor.executemany("DELETE FROM reminders WHERE id = ?", [(reminder_id,) for reminder_id in ids_to_delete])
-
-        # Atualizar ou inserir lembretes
         for reminder_id, reminder in reminders.items():
             date = reminder.get("date")
             message = reminder.get("message")
             if reminder_id in existing_ids:
-                # Atualizar lembrete existente
                 cursor.execute(
                     "UPDATE reminders SET date = ?, message = ? WHERE id = ?",
                     (date, message, reminder_id)
                 )
             else:
-                # Inserir novo lembrete
                 cursor.execute(
                     "INSERT INTO reminders (date, message) VALUES (?, ?)",
                     (date, message)
                 )
                 new_id = cursor.lastrowid
-                reminders[new_id] = reminder  # Atualizar o dicionário com o novo ID
-
+                reminders[new_id] = reminder
         conn.commit()
 
 def load_notes():
     """Carrega todas as notas do banco de dados."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, date, text, categories, tags FROM notes")
+        # Inclua is_markdown na seleção
+        cursor.execute("SELECT id, date, text, raw_text, categories, tags, is_markdown FROM notes")
         rows = cursor.fetchall()
         notes = {}
-        for note_id, date, text, categories, tags in rows:
+        for note_id, date, text, raw_text, categories, tags, is_md in rows:
+            # Se raw_text estiver vazio (notas antigas), utiliza o conteúdo de text
+            if raw_text is None or raw_text.strip() == "":
+                raw_text = text
             if date not in notes:
                 notes[date] = []
             notes[date].append({
                 "id": note_id,
-                "text": text,  # Mantém o HTML salvo corretamente
+                "text": text,         # Versão formatada (HTML ou rich text)
+                "raw_text": raw_text, # Texto original em Markdown
                 "categories": categories.split(",") if categories else [],
-                "tags": tags.split(",") if tags else []
+                "tags": tags.split(",") if tags else [],
+                "is_markdown": is_md  # Agora você tem a flag
             })
         return notes
 
@@ -198,63 +200,49 @@ def save_notes(notes):
     """Salva todas as notas no banco de dados de forma mais eficiente."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Obter todas as IDs existentes
         cursor.execute("SELECT id FROM notes")
         existing_ids = set(row[0] for row in cursor.fetchall())
-
-        # Obter IDs atuais
         current_ids = set()
         for date, notes_list in notes.items():
             for note in notes_list:
                 note_id = note.get("id")
                 if note_id:
                     current_ids.add(note_id)
-        
-        # IDs para deletar
         ids_to_delete = existing_ids - current_ids
-
-        # Deletar notas que não estão mais presentes
         if ids_to_delete:
             cursor.executemany("DELETE FROM notes WHERE id = ?", [(note_id,) for note_id in ids_to_delete])
-
-        # Atualizar ou inserir notas
         for date, notes_list in notes.items():
             for note in notes_list:
                 note_id = note.get("id")
                 text = note.get("text", "")
+                raw_text = note.get("raw_text", "")
                 categories = ",".join(note.get("categories", []))
                 tags = ",".join(note.get("tags", []))
                 if note_id in existing_ids:
-                    # Atualizar nota existente
                     cursor.execute(
-                        "UPDATE notes SET date = ?, text = ?, categories = ?, tags = ? WHERE id = ?",
-                        (date, text, categories, tags, note_id)
+                        "UPDATE notes SET date = ?, text = ?, raw_text = ?, categories = ?, tags = ? WHERE id = ?",
+                        (date, text, raw_text, categories, tags, note_id)
                     )
                 else:
-                    # Inserir nova nota
                     cursor.execute(
-                        "INSERT INTO notes (date, text, categories, tags) VALUES (?, ?, ?, ?)",
-                        (date, text, categories, tags)
+                        "INSERT INTO notes (date, text, raw_text, categories, tags) VALUES (?, ?, ?, ?, ?)",
+                        (date, text, raw_text, categories, tags)
                     )
         conn.commit()
-
 
 def add_font_size_column():
     """Adiciona a coluna 'font_size' na tabela 'theme' se ela não existir."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Verificar se a coluna 'font_size' já existe
         cursor.execute("PRAGMA table_info(theme)")
         columns = [column[1] for column in cursor.fetchall()]
-        
-        # Se a coluna 'font_size' não existe, adiciona-a
         if 'font_size' not in columns:
             cursor.execute("ALTER TABLE theme ADD COLUMN font_size INTEGER DEFAULT 12")
             conn.commit()
 
 def initialize_theme():
     """Inicializa o tema, adiciona a coluna font_size se necessário e carrega o tema."""
-    add_font_size_column()  # Garantir que a coluna 'font_size' esteja presente
+    add_font_size_column()
     theme = load_theme()
     return theme
 
@@ -265,40 +253,28 @@ def load_theme():
         cursor.execute("SELECT key, value FROM theme")
         rows = cursor.fetchall()
         if not rows:
-            # Se não houver dados, retorne o tema padrão
             return {
                 "background": "#ffffff",
                 "button": "#cccccc",
                 "marked_day": "#ffcccc",
                 "text": "#000000",
                 "dark_mode": False,
-                "font_size": 10  # Valor padrão para o tamanho da fonte
+                "font_size": 10
             }
-        
-        # Converte os valores para o tipo correto (ex: "font_size" será convertido para int)
         theme = {key: (int(value) if key == "font_size" else value) for key, value in rows}
-        
-        # Se o campo font_size não existir no tema, define um valor padrão
         if "font_size" not in theme:
             theme["font_size"] = 12
-        
         return theme
-
 
 def save_theme(theme):
     """Salva o tema no banco de dados, incluindo o tamanho da fonte."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        
-        # Atualiza ou insere os valores de cada chave do tema, incluindo o font_size
         for key, value in theme.items():
             cursor.execute('''
                 INSERT OR REPLACE INTO theme (key, value) VALUES (?, ?)
             ''', (key, str(value)))
-        
         conn.commit()
-
-
 
 def load_kanban_columns():
     """Carrega as colunas do Kanban do banco de dados."""
@@ -313,7 +289,6 @@ def load_kanban_columns():
                 "tasks": load_tasks_for_column(column_id)
             }
         return columns
-
 
 def load_tasks_for_column(column_id):
     """Carrega as tarefas para uma coluna específica."""
@@ -331,14 +306,11 @@ def load_tasks_for_column(column_id):
             })
         return tasks
 
-
 def save_kanban(columns):
     """Salva as colunas e suas respectivas tarefas no banco de dados."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        
-        # Salvar colunas
-        for column_id, column in columns.items():  # Corrigido aqui com o ":" no final
+        for column_id, column in columns.items():
             cursor.execute("INSERT OR REPLACE INTO kanban_columns (id, name) VALUES (?, ?)",
                            (column_id, column["name"]))
             for task in column["tasks"]:
@@ -346,11 +318,11 @@ def save_kanban(columns):
                     INSERT OR REPLACE INTO kanban_tasks (id, description, priority, due_date, column_id)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (task["id"], task["description"], task["priority"], task["due_date"], column_id))
-
         conn.commit()
-
 
 # Inicializa o banco de dados na primeira execução
 if not os.path.exists(DB_PATH):
     init_db()
-
+else:
+    # Mesmo se o banco já existir, garantimos que a estrutura esteja atualizada
+    init_db()

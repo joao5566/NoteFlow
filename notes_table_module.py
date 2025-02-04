@@ -2,13 +2,16 @@
 
 import sys
 import sqlite3
+import re
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QLineEdit, QPushButton,
-    QHBoxLayout, QLabel, QHeaderView, QMessageBox, QComboBox
+    QHBoxLayout, QLabel, QHeaderView, QMessageBox, QComboBox, QDialog
 )
 from PyQt5.QtCore import Qt
 from html.parser import HTMLParser
-import re
+
+# Importa a classe NoteDialog para edição de notas
+from note_module import NoteDialog
 
 class NotesTableWidget(QWidget):
     def __init__(self, parent=None):
@@ -31,19 +34,26 @@ class NotesTableWidget(QWidget):
         self.search_input.textChanged.connect(self.filter_notes)
         top_layout.addWidget(self.search_input)
 
+        # Botões para atualizar, editar e excluir
         top_buttons_layout = QHBoxLayout()
         self.refresh_button = QPushButton("Atualizar Tabela", self)
         self.refresh_button.clicked.connect(self.refresh_notes)
         top_buttons_layout.addWidget(self.refresh_button)
+
+        self.edit_button = QPushButton("Editar Nota", self)
+        self.edit_button.clicked.connect(self.edit_selected_note)
+        top_buttons_layout.addWidget(self.edit_button)
+
         self.delete_button = QPushButton("Excluir Nota(s)", self)
         self.delete_button.clicked.connect(self.delete_selected_notes)
         top_buttons_layout.addWidget(self.delete_button)
         top_layout.addLayout(top_buttons_layout)
+
         main_layout.addLayout(top_layout)
 
         # Tabela de notas
         self.notes_table = QTableWidget(self)
-        self.notes_table.setColumnCount(5)  # Adicionando coluna "ID"
+        self.notes_table.setColumnCount(5)  # Colunas: ID, Data, Texto, Categorias, Tags
         self.notes_table.setHorizontalHeaderLabels(["ID", "Data", "Texto", "Categorias", "Tags"])
         self.notes_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.notes_table.setWordWrap(True)  # Permitir quebra de linha
@@ -83,7 +93,8 @@ class NotesTableWidget(QWidget):
         self.update_notes_table()
 
     def load_notes(self, notes):
-        """Carrega as notas para exibição na tabela."""
+        """Carrega as notas para exibição na tabela.
+        Espera que 'notes' seja um dicionário onde cada chave é uma data e o valor uma lista de notas."""
         self.notes = []
         for date_str, notes_list in notes.items():
             for note in notes_list:
@@ -91,11 +102,13 @@ class NotesTableWidget(QWidget):
                     "id": note.get("id"),
                     "date": date_str,
                     "text": note.get("text", ""),
+                    "raw_text": note.get("raw_text", note.get("text", "")),
                     "categories": note.get("categories", []),
-                    "tags": note.get("tags", [])
+                    "tags": note.get("tags", []),
+                    "is_markdown": note.get("is_markdown", 0)
                 })
         self.filtered_notes = list(self.notes)
-        self.update_notes_table()  # Atualiza a tabela após carregar as notas
+        self.update_notes_table()
 
     def filter_notes(self):
         """Filtra as notas com base no texto de busca."""
@@ -104,7 +117,7 @@ class NotesTableWidget(QWidget):
         if query:
             self.filtered_notes = [
                 note for note in self.notes
-                if query in self.strip_html_tags(note["text"]).lower()
+                if query in (self.strip_html_tags(note["text"]) if note.get("is_markdown", 0) == 0 else note["text"]).lower()
                 or query in note["date"].lower()
                 or query in ", ".join(note.get("categories", [])).lower()
                 or query in ", ".join(note.get("tags", [])).lower()
@@ -131,7 +144,7 @@ class NotesTableWidget(QWidget):
 
     def strip_html_tags(self, html):
         """Remove tags HTML do texto."""
-        html = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.DOTALL)  # Remove as tags <style> e seu conteúdo
+        html = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.DOTALL)
         stripper = self.HTMLTextStripper()
         stripper.feed(html)
         return stripper.get_data()
@@ -150,9 +163,12 @@ class NotesTableWidget(QWidget):
             self.notes_table.setItem(row, 0, QTableWidgetItem(str(note['id'])))
             # Coluna Data
             self.notes_table.setItem(row, 1, QTableWidgetItem(note['date']))
-            # Coluna Texto
-            clean_text = self.strip_html_tags(note.get("text", "")).strip()  # Remove espaços extras no início e no final
-            self.notes_table.setItem(row, 2, QTableWidgetItem(clean_text))
+            # Coluna Texto: se for markdown, mostra o texto puro (raw_text); caso contrário, remove as tags HTML
+            if note.get("is_markdown", 0) == 1:
+                display_text = note.get("raw_text", note.get("text", "")).strip()
+            else:
+                display_text = self.strip_html_tags(note.get("text", "")).strip()
+            self.notes_table.setItem(row, 2, QTableWidgetItem(display_text))
             # Coluna Categorias
             self.notes_table.setItem(row, 3, QTableWidgetItem(", ".join(note.get("categories", []))))
             # Coluna Tags
@@ -179,7 +195,7 @@ class NotesTableWidget(QWidget):
             self.update_notes_table()
 
     def change_notes_per_page(self):
-        """Altera a quantidade de notas exibidas por página com base na seleção do usuário."""
+        """Altera a quantidade de notas exibidas por página."""
         self.notes_per_page = int(self.notes_per_page_selector.currentText())
         self.current_page = 0
         self.update_notes_table()
@@ -188,21 +204,23 @@ class NotesTableWidget(QWidget):
         """Recarrega as notas do banco de dados e atualiza a tabela."""
         with sqlite3.connect("data.db") as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id, date, text, categories, tags FROM notes")
+            # Agora selecionamos também raw_text
+            cursor.execute("SELECT id, date, text, raw_text, categories, tags, is_markdown FROM notes")
             rows = cursor.fetchall()
 
-        # Atualiza a lista de notas
         self.notes = []
         for row in rows:
-            note_id, date, text, categories, tags = row
+            note_id, date, text, raw_text, categories, tags, is_markdown = row
             self.notes.append({
                 "id": note_id,
                 "date": date,
                 "text": text,
+                "raw_text": raw_text if raw_text and raw_text.strip() != "" else text,
                 "categories": categories.split(", ") if categories else [],
-                "tags": tags.split(", ") if tags else []
+                "tags": tags.split(", ") if tags else [],
+                "is_markdown": is_markdown
             })
-        self.filter_notes()  # Aplica os filtros novamente
+        self.filter_notes()
 
     def delete_selected_notes(self):
         """Exclui as notas selecionadas na tabela e remove do banco de dados."""
@@ -225,7 +243,55 @@ class NotesTableWidget(QWidget):
             conn.commit()
 
         QMessageBox.information(self, "Notas excluídas", "As notas selecionadas foram excluídas com sucesso.")
-        self.refresh_notes()  # Atualiza a exibição com as notas filtradas
+        self.refresh_notes()
+
+    def edit_selected_note(self):
+        """Abre o diálogo para editar a nota selecionada."""
+        selected_rows = set(index.row() for index in self.notes_table.selectedIndexes())
+        if len(selected_rows) != 1:
+            QMessageBox.warning(self, "Seleção inválida", "Por favor, selecione exatamente uma nota para editar.")
+            return
+
+        row = selected_rows.pop()
+        note_id = int(self.notes_table.item(row, 0).text())
+        # Procura a nota na lista local
+        note_to_edit = next((note for note in self.notes if note["id"] == note_id), None)
+        if note_to_edit is None:
+            QMessageBox.warning(self, "Erro", "Nota não encontrada.")
+            return
+
+        # Abre o diálogo de edição com a data da nota
+        dialog = NoteDialog(self, mode="edit", note_date=note_to_edit["date"])
+        dialog.set_note_data(note_to_edit)
+        if dialog.exec_() == QDialog.Accepted:
+            updated_data = dialog.get_note_data()
+            # Preserva o ID, a data e a flag is_markdown
+            updated_data["id"] = note_to_edit["id"]
+            updated_data["date"] = note_to_edit["date"]
+            updated_data["is_markdown"] = note_to_edit.get("is_markdown", 0)
+            with sqlite3.connect("data.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ? WHERE id = ?",
+                    (updated_data["text"], updated_data.get("raw_text", updated_data["text"]),
+                     ", ".join(updated_data.get("categories", [])),
+                     ", ".join(updated_data.get("tags", [])),
+                     int(updated_data.get("is_markdown", 0)),
+                     updated_data["id"])
+                )
+                conn.commit()
+            QMessageBox.information(self, "Sucesso", "Nota atualizada com sucesso.")
+            self.refresh_notes()
+
+    def find_text(self):
+        """Método básico para demonstração da busca."""
+        search_str = self.search_input.text()
+        if not search_str:
+            return
+        if not any(search_str.lower() in (note["text"].lower() if note.get("is_markdown", 0)==1 
+                                          else self.strip_html_tags(note["text"]).lower())
+                   for note in self.notes):
+            QMessageBox.information(self, "Buscar", "Nenhuma ocorrência encontrada.")
 
 if __name__ == "__main__":
     from PyQt5.QtWidgets import QApplication
@@ -233,4 +299,3 @@ if __name__ == "__main__":
     window = NotesTableWidget()
     window.show()
     sys.exit(app.exec_())
-

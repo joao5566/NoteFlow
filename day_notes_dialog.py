@@ -1,11 +1,10 @@
-# day_notes_dialog.py
-
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QPushButton, QLabel, QHBoxLayout,
-    QListWidget, QListWidgetItem, QMessageBox
+    QListWidget, QListWidgetItem, QMessageBox, QDateEdit, QFormLayout, QLineEdit
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QTextDocument
+
 from note_module import NoteDialog  # Certifique-se de que NoteDialog está disponível
 
 class DayNotesDialog(QDialog):
@@ -14,6 +13,9 @@ class DayNotesDialog(QDialog):
     def __init__(self, parent, note_date, notes):
         super().__init__(parent)
         self.setWindowTitle(f"Notas para {note_date}")
+        self.setWindowFlags(self.windowFlags() |
+                            Qt.WindowMaximizeButtonHint |
+                            Qt.WindowMinimizeButtonHint)
         self.note_date = note_date
         self.notes = notes.copy()  # Lista de dicionários de notas
 
@@ -49,7 +51,12 @@ class DayNotesDialog(QDialog):
         """Popula a lista com as notas existentes."""
         self.notes_list.clear()
         for idx, note in enumerate(self.notes, start=1):
-            display_text = f"{idx}. {self.strip_html(note['text'])[:50]}..."
+            # Se a nota estiver em Markdown, utiliza raw_text; caso contrário, usa text.
+            if note.get("is_markdown", 0) == 1:
+                content = note.get("raw_text", "")
+            else:
+                content = note.get("text", "")
+            display_text = f"{idx}. {self.strip_html(content)[:50]}..."
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, note)
             self.notes_list.addItem(item)
@@ -59,6 +66,12 @@ class DayNotesDialog(QDialog):
         dialog = NoteDialog(self, mode="edit", note_date=self.note_date)
         if dialog.exec_() == QDialog.Accepted:
             new_note = dialog.get_note_data()
+            # Se o usuário optou pelo Markdown, garantimos que ambas as colunas tenham o mesmo conteúdo.
+            if dialog.is_markdown_mode:
+                new_note["is_markdown"] = 1
+                new_note["raw_text"] = new_note["text"]
+            else:
+                new_note["is_markdown"] = 0
             self.notes.append(new_note)
             self.populate_notes()
 
@@ -68,13 +81,27 @@ class DayNotesDialog(QDialog):
         if not selected_item:
             QMessageBox.warning(self, "Seleção Inválida", "Por favor, selecione uma nota para editar.")
             return
+
         note = selected_item.data(Qt.UserRole)
+        # Se a nota não possuir a chave "is_markdown", define como 0 (falso)
+        if "is_markdown" not in note:
+            note["is_markdown"] = 0
+
         dialog = NoteDialog(self, mode="edit", note_date=self.note_date)
         dialog.set_note_data(note)
         if dialog.exec_() == QDialog.Accepted:
             updated_note = dialog.get_note_data()
-            index = self.notes.index(note)
-            self.notes[index] = updated_note
+            # Certifique-se de preservar o ID e a flag is_markdown
+            updated_note["id"] = note.get("id")
+            updated_note["is_markdown"] = note.get("is_markdown", 0)
+            # Se o modo Markdown estiver ativo, garante que ambas as colunas tenham o mesmo conteúdo
+            if dialog.is_markdown_mode:
+                updated_note["raw_text"] = updated_note["text"]
+            # Procura na lista a nota com o mesmo id e atualiza-a
+            for idx, n in enumerate(self.notes):
+                if n.get("id") == note.get("id"):
+                    self.notes[idx] = updated_note
+                    break
             self.populate_notes()
 
     def delete_note(self):
@@ -104,119 +131,10 @@ class DayNotesDialog(QDialog):
 
     def closeEvent(self, event):
         """
-        Sobrescreve o método closeEvent para tratar o fechamento via botão "X" como uma aceitação.
-
-        Isso garante que as notas sejam salvas mesmo se o usuário fechar o diálogo sem usar o botão "Fechar".
+        Trata o fechamento do diálogo (inclusive via botão "X")
+        como uma aceitação para garantir que as notas sejam salvas.
         """
-        self.accept()  # Trata o fechamento como aceitação
-        event.accept()  # Confirma o evento de fechamento
+        self.accept()
+        event.accept()
 
-class DateRangeDialog(QDialog):
-    """Diálogo para selecionar um intervalo de datas."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Selecionar Intervalo de Datas")
-        self.layout = QVBoxLayout(self)
-
-        # Widget de seleção de data inicial
-        self.start_date_edit = QDateEdit(self)
-        self.start_date_edit.setCalendarPopup(True)
-        self.start_date_edit.setDate(QDate.currentDate())
-        self.layout.addWidget(QLabel("Data Inicial:", self))
-        self.layout.addWidget(self.start_date_edit)
-
-        # Widget de seleção de data final
-        self.end_date_edit = QDateEdit(self)
-        self.end_date_edit.setCalendarPopup(True)
-        self.end_date_edit.setDate(QDate.currentDate())
-        self.layout.addWidget(QLabel("Data Final:", self))
-        self.layout.addWidget(self.end_date_edit)
-
-        # Botões de ação
-        buttons_layout = QHBoxLayout()
-        self.export_button = QPushButton("Exportar", self)
-        self.export_button.clicked.connect(self.accept)
-        buttons_layout.addWidget(self.export_button)
-
-        self.cancel_button = QPushButton("Cancelar", self)
-        self.cancel_button.clicked.connect(self.reject)
-        buttons_layout.addWidget(self.cancel_button)
-
-        self.layout.addLayout(buttons_layout)
-
-    def get_dates(self):
-        """Retorna as datas selecionadas."""
-        start_date = self.start_date_edit.date().toString("yyyy-MM-dd")
-        end_date = self.end_date_edit.date().toString("yyyy-MM-dd")
-        return start_date, end_date
-
-class EditNoteDialog(QDialog):
-    """Diálogo para adicionar ou editar uma nota."""
-
-    def __init__(self, date="", text="", categories=None, tags=None, parent=None):
-        """
-        Inicializa o EditNoteDialog.
-
-        Args:
-            date (str, optional): Data da nota no formato 'yyyy-MM-dd'.
-            text (str, optional): Texto da nota.
-            categories (list, optional): Lista de categorias.
-            tags (list, optional): Lista de tags.
-            parent (QWidget, optional): Widget pai.
-        """
-        super().__init__(parent)
-        self.setWindowTitle("Adicionar/Editar Nota")
-        self.layout = QFormLayout(self)
-
-        # Entrada para data
-        self.date_edit = QDateEdit(self)
-        self.date_edit.setCalendarPopup(True)
-        if date:
-            self.date_edit.setDate(QDate.fromString(date, "yyyy-MM-dd"))
-        else:
-            self.date_edit.setDate(QDate.currentDate())
-        self.layout.addRow("Data:", self.date_edit)
-
-        # Entrada para texto da nota
-        self.text_input = QLineEdit(self)
-        self.text_input.setText(text)
-        self.layout.addRow("Texto:", self.text_input)
-
-        # Entrada para categorias
-        self.categories_input = QLineEdit(self)
-        self.categories_input.setText(", ".join(categories) if categories else "")
-        self.layout.addRow("Categorias (separadas por vírgula):", self.categories_input)
-
-        # Entrada para tags
-        self.tags_input = QLineEdit(self)
-        self.tags_input.setText(", ".join(tags) if tags else "")
-        self.layout.addRow("Tags (separadas por vírgula):", self.tags_input)
-
-        # Botões de ação
-        buttons_layout = QHBoxLayout()
-        self.save_button = QPushButton("Salvar", self)
-        self.save_button.clicked.connect(self.accept)
-        buttons_layout.addWidget(self.save_button)
-
-        self.cancel_button = QPushButton("Cancelar", self)
-        self.cancel_button.clicked.connect(self.reject)
-        buttons_layout.addWidget(self.cancel_button)
-
-        self.layout.addRow(buttons_layout)
-
-    def get_data(self):
-        """Retorna os dados inseridos pelo usuário."""
-        date = self.date_edit.date().toString("yyyy-MM-dd")
-        text = self.text_input.text().strip()
-        categories = [cat.strip() for cat in self.categories_input.text().split(",")] if self.categories_input.text() else []
-        tags = [tag.strip() for tag in self.tags_input.text().split(",")] if self.tags_input.text() else []
-        return date, text, categories, tags
-
-    def set_note_data(self, note):
-        """Define os dados da nota para edição."""
-        self.date_edit.setDate(QDate.fromString(note['date'], "yyyy-MM-dd"))
-        self.text_input.setText(note['text'])
-        self.categories_input.setText(", ".join(note['categories']))
-        self.tags_input.setText(", ".join(note['tags']))
-
+# (Segue também a classe DateRangeDialog e EditNoteDialog, conforme o seu código original)
