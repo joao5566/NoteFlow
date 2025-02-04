@@ -634,7 +634,14 @@ class CalendarApp(QMainWindow):
     def open_note_dialog(self, note_date):
         day_notes = self.notes.get(note_date, [])
         dialog = DayNotesDialog(self, note_date, day_notes)
-        if dialog.exec_() == QDialog.Accepted:
+        dialog.setModal(False)  # Torna o diálogo não modal
+        # Conecta o sinal 'finished' para tratar quando o diálogo for fechado
+        dialog.finished.connect(lambda result, d=dialog, nd=note_date: self.after_note_dialog(result, d, nd))
+        dialog.show()
+
+    def after_note_dialog(self, result, dialog, note_date):
+        # Se o usuário fechou o diálogo com "Aceitar"
+        if result == QDialog.Accepted:
             updated_notes = dialog.get_notes()
             if updated_notes:
                 self.notes[note_date] = updated_notes
@@ -643,6 +650,7 @@ class CalendarApp(QMainWindow):
                     del self.notes[note_date]
             save_notes(self.notes)
             self.refresh_calendar()
+
 
     def open_reminder_dialog(self):
         dialog = ReminderDialog(self)

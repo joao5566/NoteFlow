@@ -9,13 +9,16 @@ from note_module import NoteDialog  # Certifique-se de que NoteDialog está disp
 
 class DayNotesDialog(QDialog):
     """Diálogo para visualizar e gerenciar múltiplas notas de um dia."""
-
     def __init__(self, parent, note_date, notes):
         super().__init__(parent)
         self.setWindowTitle(f"Notas para {note_date}")
+        # Adiciona os botões de maximizar e minimizar
         self.setWindowFlags(self.windowFlags() |
                             Qt.WindowMaximizeButtonHint |
                             Qt.WindowMinimizeButtonHint)
+        # Define o diálogo como não modal:
+        self.setModal(False)
+
         self.note_date = note_date
         self.notes = notes.copy()  # Lista de dicionários de notas
 
@@ -42,7 +45,7 @@ class DayNotesDialog(QDialog):
         self.buttons_layout.addWidget(self.delete_button)
 
         self.close_button = QPushButton("Fechar", self)
-        self.close_button.clicked.connect(self.accept)  # Conecta ao accept
+        self.close_button.clicked.connect(self.accept)  # Mantém um botão para fechar de forma controlada
         self.buttons_layout.addWidget(self.close_button)
 
         self.layout.addLayout(self.buttons_layout)
@@ -62,11 +65,17 @@ class DayNotesDialog(QDialog):
             self.notes_list.addItem(item)
 
     def add_note(self):
-        """Abre o diálogo para adicionar uma nova nota."""
+        """Abre o diálogo para adicionar uma nova nota de forma não modal."""
         dialog = NoteDialog(self, mode="edit", note_date=self.note_date)
-        if dialog.exec_() == QDialog.Accepted:
+        dialog.setModal(False)
+        # Conecta o sinal finished para capturar o resultado quando o diálogo for fechado
+        dialog.finished.connect(lambda result, d=dialog: self.on_add_note_finished(result, d))
+        dialog.show()
+
+    def on_add_note_finished(self, result, dialog):
+        """Tratamento do fechamento do diálogo de adição de nota."""
+        if result == QDialog.Accepted:
             new_note = dialog.get_note_data()
-            # Se o usuário optou pelo Markdown, garantimos que ambas as colunas tenham o mesmo conteúdo.
             if dialog.is_markdown_mode:
                 new_note["is_markdown"] = 1
                 new_note["raw_text"] = new_note["text"]
@@ -76,28 +85,30 @@ class DayNotesDialog(QDialog):
             self.populate_notes()
 
     def edit_note(self):
-        """Abre o diálogo para editar a nota selecionada."""
+        """Abre o diálogo para editar a nota selecionada de forma não modal."""
         selected_item = self.notes_list.currentItem()
         if not selected_item:
             QMessageBox.warning(self, "Seleção Inválida", "Por favor, selecione uma nota para editar.")
             return
 
         note = selected_item.data(Qt.UserRole)
-        # Se a nota não possuir a chave "is_markdown", define como 0 (falso)
         if "is_markdown" not in note:
             note["is_markdown"] = 0
 
         dialog = NoteDialog(self, mode="edit", note_date=self.note_date)
         dialog.set_note_data(note)
-        if dialog.exec_() == QDialog.Accepted:
+        dialog.setModal(False)
+        dialog.finished.connect(lambda result, d=dialog, n=note: self.on_edit_note_finished(result, d, n))
+        dialog.show()
+
+    def on_edit_note_finished(self, result, dialog, note):
+        """Tratamento do fechamento do diálogo de edição de nota."""
+        if result == QDialog.Accepted:
             updated_note = dialog.get_note_data()
-            # Certifique-se de preservar o ID e a flag is_markdown
             updated_note["id"] = note.get("id")
             updated_note["is_markdown"] = note.get("is_markdown", 0)
-            # Se o modo Markdown estiver ativo, garante que ambas as colunas tenham o mesmo conteúdo
             if dialog.is_markdown_mode:
                 updated_note["raw_text"] = updated_note["text"]
-            # Procura na lista a nota com o mesmo id e atualiza-a
             for idx, n in enumerate(self.notes):
                 if n.get("id") == note.get("id"):
                     self.notes[idx] = updated_note
@@ -129,12 +140,6 @@ class DayNotesDialog(QDialog):
         doc.setHtml(html)
         return doc.toPlainText()
 
-    def closeEvent(self, event):
-        """
-        Trata o fechamento do diálogo (inclusive via botão "X")
-        como uma aceitação para garantir que as notas sejam salvas.
-        """
-        self.accept()
-        event.accept()
-
-# (Segue também a classe DateRangeDialog e EditNoteDialog, conforme o seu código original)
+    # O método closeEvent pode permanecer sem alteração, ou ser ajustado conforme a necessidade.
+    # Por exemplo, se preferir que o fechamento via "X" não force automaticamente a aceitação,
+    # basta não chamar self.accept() aqui.
