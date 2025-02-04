@@ -26,7 +26,7 @@ def init_db():
                 message TEXT
             )
         ''')
-        # Tabela de notas (criada com as colunas antigas)
+        # Tabela de notas (incluindo a coluna custom_css para regras personalizadas)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +35,8 @@ def init_db():
                 raw_text TEXT,
                 categories TEXT,
                 tags TEXT,
-                is_markdown INTEGER DEFAULT 0
+                is_markdown INTEGER DEFAULT 0,
+                custom_css TEXT DEFAULT ""
             )
         ''')
         # Tabela de tema
@@ -64,15 +65,15 @@ def init_db():
         ''')
         conn.commit()
 
-        # Atualiza a tabela de notas para incluir a coluna raw_text, se necessário
+        # Atualiza a tabela de notas para incluir as colunas raw_text, custom_css e is_markdown, se necessário
         cursor.execute("PRAGMA table_info(notes)")
         columns = [column[1] for column in cursor.fetchall()]
         if "raw_text" not in columns:
             cursor.execute("ALTER TABLE notes ADD COLUMN raw_text TEXT")
             conn.commit()
-         # Se a tabela já existir e não tiver a coluna is_markdown, adiciona-a:
-        cursor.execute("PRAGMA table_info(notes)")
-        columns = [column[1] for column in cursor.fetchall()]
+        if "custom_css" not in columns:
+            cursor.execute("ALTER TABLE notes ADD COLUMN custom_css TEXT DEFAULT ''")
+            conn.commit()
         if "is_markdown" not in columns:
             cursor.execute("ALTER TABLE notes ADD COLUMN is_markdown INTEGER DEFAULT 0")
             conn.commit()
@@ -97,21 +98,12 @@ def save_tasks(tasks):
     """Salva todas as tarefas no banco de dados de forma eficiente."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Obter todas as IDs existentes
         cursor.execute("SELECT id FROM tasks")
         existing_ids = set(row[0] for row in cursor.fetchall())
-
-        # Obter IDs atuais
         current_ids = set(tasks.keys())
-
-        # IDs para deletar
         ids_to_delete = existing_ids - current_ids
-
-        # Deletar tarefas não existentes
         if ids_to_delete:
             cursor.executemany("DELETE FROM tasks WHERE id = ?", [(task_id,) for task_id in ids_to_delete])
-
-        # Atualizar ou inserir tarefas
         for task_id, task in tasks.items():
             name = task.get("name")
             completed = int(task.get("completed", False))
@@ -176,23 +168,24 @@ def load_notes():
     """Carrega todas as notas do banco de dados."""
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
-        # Inclua is_markdown na seleção
-        cursor.execute("SELECT id, date, text, raw_text, categories, tags, is_markdown FROM notes")
+        # Seleciona também a coluna custom_css
+        cursor.execute("SELECT id, date, text, raw_text, categories, tags, is_markdown, custom_css FROM notes")
         rows = cursor.fetchall()
         notes = {}
-        for note_id, date, text, raw_text, categories, tags, is_md in rows:
-            # Se raw_text estiver vazio (notas antigas), utiliza o conteúdo de text
+        for note_id, date, text, raw_text, categories, tags, is_md, custom_css in rows:
+            # Se raw_text estiver vazio, usa o conteúdo de text
             if raw_text is None or raw_text.strip() == "":
                 raw_text = text
             if date not in notes:
                 notes[date] = []
             notes[date].append({
                 "id": note_id,
-                "text": text,         # Versão formatada (HTML ou rich text)
-                "raw_text": raw_text, # Texto original em Markdown
+                "text": text,
+                "raw_text": raw_text,
                 "categories": categories.split(",") if categories else [],
                 "tags": tags.split(",") if tags else [],
-                "is_markdown": is_md  # Agora você tem a flag
+                "is_markdown": is_md,
+                "custom_css": custom_css or ""
             })
         return notes
 
@@ -218,15 +211,16 @@ def save_notes(notes):
                 raw_text = note.get("raw_text", "")
                 categories = ",".join(note.get("categories", []))
                 tags = ",".join(note.get("tags", []))
+                custom_css = note.get("custom_css", "")
                 if note_id in existing_ids:
                     cursor.execute(
-                        "UPDATE notes SET date = ?, text = ?, raw_text = ?, categories = ?, tags = ? WHERE id = ?",
-                        (date, text, raw_text, categories, tags, note_id)
+                        "UPDATE notes SET date = ?, text = ?, raw_text = ?, categories = ?, tags = ?, custom_css = ? WHERE id = ?",
+                        (date, text, raw_text, categories, tags, custom_css, note_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO notes (date, text, raw_text, categories, tags) VALUES (?, ?, ?, ?, ?)",
-                        (date, text, raw_text, categories, tags)
+                        "INSERT INTO notes (date, text, raw_text, categories, tags, custom_css) VALUES (?, ?, ?, ?, ?, ?)",
+                        (date, text, raw_text, categories, tags, custom_css)
                     )
         conn.commit()
 
@@ -324,5 +318,5 @@ def save_kanban(columns):
 if not os.path.exists(DB_PATH):
     init_db()
 else:
-    # Mesmo se o banco já existir, garantimos que a estrutura esteja atualizada
+    # Mesmo se o banco já existir, garante que a estrutura esteja atualizada
     init_db()

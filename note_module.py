@@ -1,14 +1,24 @@
 import os
 import sqlite3
+import base64
 import markdown
 from fpdf import FPDF
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QPushButton, QLabel, QHBoxLayout,
-    QLineEdit, QTextEdit, QColorDialog, QFontDialog, QCheckBox, QComboBox,
-    QFileDialog, QMessageBox, QTextBrowser
+    QLineEdit, QColorDialog, QFontDialog, QCheckBox, QComboBox,
+    QFileDialog, QMessageBox, QTextBrowser, QInputDialog, QTextEdit
 )
 from PyQt5.QtCore import QTimer, Qt
-from PyQt5.QtGui import QTextCursor, QTextCharFormat, QFont
+from PyQt5.QtGui import QTextCursor, QTextCharFormat, QFont, QKeyEvent, QTextDocument
+
+# Subclasse de QTextEdit para inserir espaços ao pressionar Tab
+class CustomTextEdit(QTextEdit):
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key_Tab:
+            # Insere 4 espaços; ajuste conforme desejado
+            self.insertPlainText("    ")
+        else:
+            super().keyPressEvent(event)
 
 DB_PATH = "data.db"
 
@@ -17,7 +27,7 @@ class NoteDialog(QDialog):
     def __init__(self, parent=None, mode="view", note_date=None):
         super().__init__(parent)
         self.setWindowTitle("Nota")
-        # Define flags para exibir os botões de minimizar, maximizar e fechar
+        # Define flags para os botões de minimizar, maximizar e fechar
         self.setWindowFlags(self.windowFlags() |
                             Qt.WindowMaximizeButtonHint |
                             Qt.WindowMinimizeButtonHint)
@@ -25,16 +35,18 @@ class NoteDialog(QDialog):
         self.layout = QVBoxLayout(self)
         self.mode = mode
         self.note_date = note_date
-        self.is_markdown_mode = False  # Flag para o modo Markdown
+        self.is_markdown_mode = False  # Se True, opera em modo Markdown (texto puro)
         self.current_text_color = "#000000"  # Cor padrão para o preview
-        self.preview_font_size = 12  # Tamanho de fonte padrão do preview
+        self.preview_font_size = 12  # Tamanho da fonte para o preview
+        # Variável para armazenar regras CSS personalizadas (apenas o conteúdo interno, sem <style> tags)
+        self.header_css = ""
 
-        # Área de edição de nota (usada tanto para rich text quanto para Markdown)
-        self.note_edit = QTextEdit(self)
+        # Usa CustomTextEdit para melhorar a edição (especialmente a tecla Tab)
+        self.note_edit = CustomTextEdit(self)
         self.note_edit.setReadOnly(mode == "view")
         self.layout.addWidget(self.note_edit)
 
-        # Adiciona uma barra de ferramentas com desfazer, refazer e buscar (somente em modo edição)
+        # Barra de ferramentas (desfazer, refazer, buscar) no modo edição
         if mode == "edit":
             self.editor_tools_layout = QHBoxLayout()
             self.undo_button = QPushButton("Desfazer", self)
@@ -55,42 +67,41 @@ class NoteDialog(QDialog):
 
             self.layout.addLayout(self.editor_tools_layout)
 
-        # Checkbox para habilitar o modo Markdown (disponível apenas em modo edição)
+        # Checkbox para habilitar o modo Markdown (modo edição)
         if mode == "edit":
             self.markdown_checkbox = QCheckBox("Usar Markdown", self)
             self.markdown_checkbox.stateChanged.connect(self.toggle_markdown_mode)
             self.layout.addWidget(self.markdown_checkbox)
 
-        # Área de pré-visualização do Markdown (inicialmente oculta)
+        # Área de pré-visualização (inicialmente oculta)
         self.preview_browser = QTextBrowser(self)
         self.preview_browser.setVisible(False)
         self.layout.addWidget(self.preview_browser)
 
-        # Em modo rich text, adiciona botões de formatação
+        # Barra de formatação (modo edição)
         if mode == "edit":
             self.format_buttons_layout = QHBoxLayout()
             self.layout.addLayout(self.format_buttons_layout)
             self.add_format_buttons()
 
-        # Campo para categorias da nota
+        # Campos para categorias e tags
         self.layout.addWidget(QLabel("Categorias (separadas por vírgula):"))
         self.category_input = QLineEdit(self)
         self.category_input.setReadOnly(mode == "view")
         self.layout.addWidget(self.category_input)
 
-        # Campo para tags da nota
         self.layout.addWidget(QLabel("Tags (separadas por vírgula):"))
         self.tags_input = QLineEdit(self)
         self.tags_input.setReadOnly(mode == "view")
         self.layout.addWidget(self.tags_input)
 
-        # Checkbox para marcar como feito (disponível apenas no modo edição)
+        # Checkbox para marcar como feito (modo edição)
         if mode == "edit":
             self.done_checkbox = QCheckBox("Marcar como Feito", self)
             self.done_checkbox.stateChanged.connect(self.toggle_done_tag)
             self.layout.addWidget(self.done_checkbox)
 
-        # Layout para botões de ação (salvar ou visualizar)
+        # Botões de ação (salvar ou visualizar)
         self.action_buttons_layout = QHBoxLayout()
         self.layout.addLayout(self.action_buttons_layout)
         if mode == "edit":
@@ -98,14 +109,14 @@ class NoteDialog(QDialog):
         else:
             self.add_view_buttons()
 
-        # Configuração de auto-save (apenas no modo edição)
+        # Auto-save (modo edição)
         if mode == "edit":
             self.auto_save_timer = QTimer(self)
             self.auto_save_timer.timeout.connect(self.auto_save_note)
             self.auto_save_timer.start(60000)
 
     def add_format_buttons(self):
-        """Adiciona botões de formatação (válidos apenas para rich text)."""
+        """Adiciona botões de formatação (para rich text)."""
         self.color_button = QPushButton("Cor do Texto", self)
         self.color_button.clicked.connect(self.change_text_color)
         self.format_buttons_layout.addWidget(self.color_button)
@@ -133,6 +144,69 @@ class NoteDialog(QDialog):
         self.underline_button.clicked.connect(self.toggle_underline)
         self.format_buttons_layout.addWidget(self.underline_button)
 
+        self.image_button = QPushButton("Inserir Imagem", self)
+        self.image_button.clicked.connect(self.insert_image)
+        self.format_buttons_layout.addWidget(self.image_button)
+
+        # Botão para configurar regras personalizadas
+        self.header_style_button = QPushButton("Regras Personalizadas", self)
+        self.header_style_button.clicked.connect(self.configure_headers)
+        self.format_buttons_layout.addWidget(self.header_style_button)
+
+    def configure_headers(self):
+        """Abre um diálogo para que o usuário insira regras CSS personalizadas.
+        O valor armazenado será apenas o conteúdo interno do CSS (sem <style> tags).
+        Atualiza o preview imediatamente."""
+        current_css = self.header_css
+        if current_css.startswith("<style>") and current_css.endswith("</style>"):
+            current_css = current_css[len("<style>"):-len("</style>")]
+        if not current_css.strip():
+            current_css = "h1 { font-size: 36px; color: black; }"
+        css_text, ok = QInputDialog.getMultiLineText(
+            self, "Regras Personalizadas",
+            "Insira as regras CSS para personalizar seus elementos (ex: h1, h2, h3, .custom-title, etc.):",
+            current_css
+        )
+        if ok:
+            self.header_css = css_text.strip()  # Armazena somente o conteúdo interno
+            if self.is_markdown_mode:
+                self.update_markdown_preview()
+
+    def insert_image(self):
+        """Insere uma imagem convertida para Base64 no editor."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Selecionar Imagem", "", "Imagens (*.png *.jpg *.jpeg *.gif *.bmp)"
+        )
+        if file_path:
+            with open(file_path, "rb") as image_file:
+                encoded_bytes = base64.b64encode(image_file.read())
+                encoded_string = encoded_bytes.decode("utf-8")
+            alt_text, ok = QInputDialog.getText(self, "Descrição da Imagem", "Digite a descrição da imagem:")
+            if not ok or not alt_text.strip():
+                alt_text = "imagem"
+            width_str, ok = QInputDialog.getText(self, "Largura da Imagem", "Digite a largura (px) ou deixe em branco para tamanho natural:")
+            if ok and width_str.strip():
+                try:
+                    width = int(width_str)
+                    style_attr = f'style="width:{width}px;"'
+                except ValueError:
+                    style_attr = ""
+            else:
+                style_attr = ""
+            ext = os.path.splitext(file_path)[1].lower()
+            if ext in [".jpg", ".jpeg"]:
+                mime = "image/jpeg"
+            elif ext == ".gif":
+                mime = "image/gif"
+            elif ext == ".bmp":
+                mime = "image/bmp"
+            else:
+                mime = "image/png"
+            data_uri = f"data:{mime};base64,{encoded_string}"
+            cursor = self.note_edit.textCursor()
+            image_html = f'<img src="{data_uri}" alt="{alt_text}" {style_attr} />'
+            cursor.insertHtml(image_html)
+
     def add_save_button(self):
         """Adiciona o botão de salvar."""
         self.save_button = QPushButton("Salvar", self)
@@ -140,7 +214,7 @@ class NoteDialog(QDialog):
         self.action_buttons_layout.addWidget(self.save_button)
 
     def add_view_buttons(self):
-        """Adiciona botões de visualização (para quando a nota não estiver em modo edição)."""
+        """Adiciona botões de visualização (modo não edição)."""
         self.edit_button = QPushButton("Editar", self)
         self.edit_button.clicked.connect(self.enable_edit_mode)
         self.action_buttons_layout.addWidget(self.edit_button)
@@ -153,50 +227,39 @@ class NoteDialog(QDialog):
         """Valida e salva a nota."""
         if self.validate_note_data():
             if self.is_markdown_mode:
-                # Se o modo Markdown estiver ativo, obtém o conteúdo puro em Markdown
-                # e salva-o tanto na coluna 'raw_text' quanto na coluna 'text'.
                 raw_content = self.note_edit.toPlainText()
-                html_content = raw_content  # Armazena o mesmo conteúdo em 'text'
+                html_content = raw_content  # Ambos recebem o mesmo valor
             else:
-                # Modo antigo: salva o HTML gerado pelo QTextEdit.
                 html_content = self.note_edit.toHtml()
-                raw_content = ""  # Opcional
-
-            categories = ",".join(
-                [cat.strip() for cat in self.category_input.text().split(",") if cat.strip()]
-            )
-            tags = ",".join(
-                [tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()]
-            )
-
+                raw_content = ""
+            categories = ",".join([cat.strip() for cat in self.category_input.text().split(",") if cat.strip()])
+            tags = ",".join([tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()])
             with sqlite3.connect(DB_PATH) as conn:
                 cursor = conn.cursor()
                 if self.mode == "edit" and hasattr(self, 'note_id'):
                     cursor.execute(
-                        "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ? WHERE id = ?",
-                        (html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.note_id)
+                        "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ?, custom_css = ? WHERE id = ?",
+                        (html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css, self.note_id)
                     )
                 else:
                     cursor.execute(
-                        "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown) VALUES (?, ?, ?, ?, ?, ?)",
-                        (self.note_date, html_content, raw_content, categories, tags, int(self.is_markdown_mode))
+                        "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (self.note_date, html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css)
                     )
                 conn.commit()
             QMessageBox.information(self, "Sucesso", "Nota salva com sucesso.")
             self.accept()
 
     def validate_note_data(self):
-        """Valida os dados da nota, garantindo que não esteja vazia."""
+        """Valida se a nota não está vazia."""
         if not self.note_edit.toPlainText().strip():
             QMessageBox.warning(self, "Aviso", "A nota não pode estar vazia.")
             return False
         return True
 
     def export_to_pdf(self):
-        """Exporta a nota atual como PDF, convertendo o conteúdo para texto puro."""
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Exportar Nota como PDF", "nota.pdf", "Arquivos PDF (*.pdf)"
-        )
+        """Exporta a nota para PDF."""
+        path, _ = QFileDialog.getSaveFileName(self, "Exportar Nota como PDF", "nota.pdf", "Arquivos PDF (*.pdf)")
         if path:
             content = self.get_current_content()
             pdf = FPDF()
@@ -207,7 +270,7 @@ class NoteDialog(QDialog):
             QMessageBox.information(self, "Exportação Concluída", f"Nota exportada como PDF em '{path}'")
 
     def toggle_done_tag(self, state):
-        """Adiciona ou remove a tag 'feito' conforme o estado do checkbox."""
+        """Adiciona ou remove a tag 'feito'."""
         tags = [tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()]
         if state == Qt.Checked:
             if "feito" not in tags:
@@ -218,7 +281,7 @@ class NoteDialog(QDialog):
         self.tags_input.setText(",".join(tags))
 
     def auto_save_note(self):
-        """Realiza o auto-save da nota em um arquivo HTML."""
+        """Realiza o auto-save da nota."""
         content = self.get_current_content()
         path = os.path.join(os.getcwd(), "auto_save_note.html")
         with open(path, "w", encoding="utf-8") as file:
@@ -227,19 +290,17 @@ class NoteDialog(QDialog):
 
     def get_current_content(self):
         """
-        Retorna o conteúdo atual da nota.
-        Se o modo Markdown estiver ativo, converte o texto usando a biblioteca markdown
-        com as extensões 'fenced_code', 'codehilite' e 'nl2br' e insere estilos CSS;
-        caso contrário, retorna o HTML do QTextEdit.
+        Gera o conteúdo atual da nota.
+        Se o modo Markdown estiver ativo, converte o texto com markdown e adiciona os estilos CSS,
+        incluindo as regras personalizadas (envolvidas em uma única tag <style>);
+        caso contrário, retorna o HTML do editor.
         """
         raw_text = self.note_edit.toPlainText()
         if self.is_markdown_mode:
-            # Converte Markdown para HTML para a pré-visualização
             html_content = markdown.markdown(
                 raw_text,
                 extensions=['fenced_code', 'codehilite', 'nl2br']
             )
-            # Adiciona estilos CSS para o preview
             css = f"""
             <style>
                 .preview {{
@@ -268,13 +329,15 @@ class NoteDialog(QDialog):
                 .codehilite .hll {{ background-color: #ffffcc }}
             </style>
             """
-            full_html = f"{css}<div class='preview'>{html_content}</div>"
+            # Envolve o CSS personalizado em uma única tag <style> se existir
+            header_style = f"<style>{self.header_css}</style>" if self.header_css else ""
+            full_html = f"{header_style}{css}<div class='preview'>{html_content}</div>"
             return full_html
         else:
             return self.note_edit.toHtml()
 
     def get_note_data(self):
-        """Retorna os dados atuais da nota."""
+        """Retorna os dados atuais da nota, incluindo as regras personalizadas."""
         tags = [tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()]
         if self.is_markdown_mode:
             note_text = self.note_edit.toPlainText()
@@ -283,29 +346,32 @@ class NoteDialog(QDialog):
         return {
             "text": note_text,
             "categories": [cat.strip() for cat in self.category_input.text().split(",") if cat.strip()],
-            "tags": tags
+            "tags": tags,
+            "custom_css": self.header_css
         }
 
     def set_note_data(self, data):
         """Popula os campos do diálogo com os dados da nota."""
-        # Se a nota foi salva em Markdown (ou se o usuário deseja forçar o modo Markdown)
         is_md = int(data.get("is_markdown", 0))
         if is_md == 1:
-            # Carrega o texto puro em Markdown
             self.note_edit.setPlainText(data.get("raw_text", ""))
             self.is_markdown_mode = True
             if self.mode == "edit":
                 self.markdown_checkbox.setChecked(True)
         else:
-            # Caso contrário, carrega o conteúdo HTML renderizado
             self.note_edit.setHtml(data.get("text", ""))
             self.is_markdown_mode = False
 
         self.category_input.setText(", ".join(data.get("categories", [])))
         self.tags_input.setText(", ".join(data.get("tags", [])))
+        # Carrega as regras personalizadas salvas na nota
+        self.header_css = data.get("custom_css", "")
         if self.mode == "edit":
             self.done_checkbox.setChecked("feito" in data.get("tags", []))
             self.note_id = data.get("id")
+        # Atualiza o preview se estiver em modo Markdown, mesmo que o texto não tenha sido alterado
+        if self.is_markdown_mode:
+            self.update_markdown_preview()
 
     def enable_edit_mode(self):
         """Ativa o modo de edição da nota."""
@@ -314,7 +380,6 @@ class NoteDialog(QDialog):
         self.category_input.setReadOnly(False)
         self.tags_input.setReadOnly(False)
         self.done_checkbox.setVisible(True)
-        # Remove os botões antigos e adiciona os de edição
         for i in reversed(range(self.action_buttons_layout.count())):
             widget = self.action_buttons_layout.itemAt(i).widget()
             if widget:
@@ -326,8 +391,7 @@ class NoteDialog(QDialog):
         """Ativa ou desativa o modo Markdown e atualiza a pré-visualização."""
         if state == Qt.Checked:
             self.is_markdown_mode = True
-            # Em Markdown, os botões de formatação não são necessários
-            self.set_format_buttons_enabled(False)
+            # Não desabilita os botões para manter a barra ativa
             self.preview_browser.setVisible(True)
             self.note_edit.textChanged.connect(self.update_markdown_preview)
             self.update_markdown_preview()
@@ -348,12 +412,12 @@ class NoteDialog(QDialog):
                 widget.setEnabled(enabled)
 
     def update_markdown_preview(self):
-        """Atualiza a área de pré-visualização do Markdown."""
+        """Atualiza a pré-visualização do Markdown."""
         html = self.get_current_content()
         self.preview_browser.setHtml(html)
 
     def change_text_color(self):
-        """Altera a cor do texto selecionado no editor."""
+        """Altera a cor do texto selecionado."""
         from PyQt5.QtWidgets import QColorDialog
         color = QColorDialog.getColor()
         if color.isValid():
@@ -365,7 +429,6 @@ class NoteDialog(QDialog):
                 cursor.mergeCharFormat(fmt)
             else:
                 self.note_edit.setCurrentCharFormat(fmt)
-            # Se estiver em Markdown, atualiza o preview para refletir a nova cor
             if self.is_markdown_mode:
                 self.update_markdown_preview()
 
@@ -413,22 +476,36 @@ class NoteDialog(QDialog):
         cursor.mergeCharFormat(fmt)
 
     def strip_html(self, html):
-        """Remove tags HTML e retorna apenas o texto puro."""
-        from PyQt5.QtGui import QTextDocument
+        """Remove tags HTML e retorna o texto puro."""
         doc = QTextDocument()
         doc.setHtml(html)
         return doc.toPlainText()
 
     def find_text(self):
-        """Realiza a busca de uma string no editor de forma circular."""
-        search_str = self.find_edit.text()
+        """Procura a string no conteúdo da nota, deslocando o cursor para a ocorrência encontrada.
+        Se não encontrar, move o cursor para o início e tenta novamente; se ainda assim não encontrar,
+        informa o usuário."""
+        search_str = self.find_edit.text()  # Usando o QLineEdit criado para busca
         if not search_str:
             return
 
-        # Tenta encontrar a próxima ocorrência
-        if not self.note_edit.find(search_str):
-            # Se não encontrar, move o cursor para o início do documento
+        # Tenta encontrar a ocorrência a partir da posição atual do cursor
+        found = self.note_edit.find(search_str)
+        if not found:
+            # Move o cursor para o início do documento e tenta novamente
             self.note_edit.moveCursor(QTextCursor.Start)
-            # Tenta encontrar novamente
-            if not self.note_edit.find(search_str):
+            found = self.note_edit.find(search_str)
+            if not found:
                 QMessageBox.information(self, "Buscar", "Nenhuma ocorrência encontrada.")
+
+
+
+
+if __name__ == "__main__":
+    from PyQt5.QtWidgets import QApplication
+    import sys
+    app = QApplication(sys.argv)
+    # Aqui você pode testar a interface criando uma janela de NoteDialog
+    window = NoteDialog(mode="edit", note_date="2023-08-28")
+    window.show()
+    sys.exit(app.exec_())
