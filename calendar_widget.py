@@ -296,9 +296,6 @@ class CalendarApp(QMainWindow):
         reminders_tasks_menu.addAction(task_manager_action)
 
         import_export_menu = menubar.addMenu("Importar e Exportar")
-        export_pdf_action = QAction("Exportar para PDF", self)
-        export_pdf_action.triggered.connect(lambda: export_to_pdf(self))
-        import_export_menu.addAction(export_pdf_action)
         export_action = QAction("Exportar Notas", self)
         export_action.triggered.connect(lambda: export_notes(self))
         import_export_menu.addAction(export_action)
