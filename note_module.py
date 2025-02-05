@@ -241,7 +241,8 @@ class NoteDialog(QDialog):
         self.markdown_container = None  # Container que reúne editor e preview (modo Markdown)
         self.draggable_container = None  # Container arrastável (em ambos os modos)
         self.external_preview_window = None  # Janela externa para o preview
-
+        self.image_placeholders = {}  # Mapeia identificadores para data URIs
+        self.image_counter = 0
         self.note_edit = CustomTextEdit(self)
         self.note_edit.setReadOnly(mode == "view")
 
@@ -400,22 +401,17 @@ class NoteDialog(QDialog):
                 self.update_markdown_preview()
 
     def insert_image(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Selecionar Imagem", "", "Imagens (*.png *.jpg *.jpeg *.gif *.bmp)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, 
+            "Selecionar Imagem", 
+            "", 
+            "Imagens (*.png *.jpg *.jpeg *.gif *.bmp)"
+        )
         if file_path:
-            with open(file_path, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
             alt_text, ok = QInputDialog.getText(self, "Descrição da Imagem", "Digite a descrição da imagem:")
             if not ok or not alt_text.strip():
                 alt_text = "imagem"
-            width_str, ok = QInputDialog.getText(self, "Largura da Imagem", "Digite a largura (px) ou deixe em branco:")
-            if ok and width_str.strip():
-                try:
-                    width = int(width_str)
-                    style_attr = f'style="width:{width}px;"'
-                except ValueError:
-                    style_attr = ""
-            else:
-                style_attr = ""
+
             ext = os.path.splitext(file_path)[1].lower()
             mime = "image/png"
             if ext in [".jpg", ".jpeg"]:
@@ -424,10 +420,37 @@ class NoteDialog(QDialog):
                 mime = "image/gif"
             elif ext == ".bmp":
                 mime = "image/bmp"
+            
+            # Lê e codifica a imagem em base64
+            with open(file_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
             data_uri = f"data:{mime};base64,{encoded_string}"
+            
             cursor = self.note_edit.textCursor()
-            image_html = f'<img src="{data_uri}" alt="{alt_text}" {style_attr} />'
-            cursor.insertHtml(image_html)
+            
+            if self.is_markdown_mode:
+                # Cria um placeholder único para a imagem
+                self.image_counter += 1
+                placeholder = f"IMAGE_PLACEHOLDER_{self.image_counter}"
+                # Armazena o mapeamento entre o placeholder e o data URI completo
+                self.image_placeholders[placeholder] = data_uri
+                # Insere a sintaxe Markdown com o placeholder
+                markdown_image = f"![{alt_text}]({placeholder})"
+                cursor.insertText(markdown_image)
+            else:
+                # Modo HTML (permanece o mesmo, ou você pode aplicar outra lógica)
+                width_str, ok = QInputDialog.getText(self, "Largura da Imagem", "Digite a largura (px) ou deixe em branco:")
+                if ok and width_str.strip():
+                    try:
+                        width = int(width_str)
+                        style_attr = f'style="width:{width}px;"'
+                    except ValueError:
+                        style_attr = ""
+                else:
+                    style_attr = ""
+                image_html = f'<img src="{data_uri}" alt="{alt_text}" {style_attr} />'
+                cursor.insertHtml(image_html)
+
 
     def add_save_button(self):
         self.save_button = QPushButton("Salvar", self)
@@ -513,6 +536,10 @@ class NoteDialog(QDialog):
     def get_current_content(self):
         raw_text = self.note_edit.toPlainText()
         if self.is_markdown_mode:
+            # Substitui cada placeholder pelo data URI completo
+            for placeholder, data_uri in self.image_placeholders.items():
+                raw_text = raw_text.replace(placeholder, data_uri)
+            # Converte o Markdown para HTML para exibição
             html_content = markdown.markdown(raw_text, extensions=['fenced_code', 'codehilite', 'nl2br'])
             css = f"""
                 <style>
@@ -555,6 +582,7 @@ class NoteDialog(QDialog):
             return f"{header_style}{css}<div class='preview'>{html_content}</div>"
         else:
             return self.note_edit.toHtml()
+
 
     def get_note_data(self):
         tags = [tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()]

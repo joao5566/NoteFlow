@@ -141,6 +141,7 @@ class DayNotesDialog(QDialog):
             # Se o diálogo estiver no modo markdown, atualiza o campo raw_text
             if dialog.is_markdown_mode:
                 updated_note["raw_text"] = updated_note["text"]
+                updated_note["is_markdown"] = 1  # Garante que a nota continuará em Markdown
             # Se o usuário mudar o modo de markdown, atualize a flag
             else:
                 updated_note["is_markdown"] = 0
