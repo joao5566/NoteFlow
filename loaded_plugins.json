@@ -1,8 +1,24 @@
 {
     "plugins": [
-        "C:\\Users\\joao2\\NoteFlow\\plugins\\paint_plugin\\main.py",
-        "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_flashcards\\main.py",
-        "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_help\\main.py",
-        "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_markdown_guide\\main.py"
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\paint_plugin\\main.py",
+            "name": "Pixel Art"
+        },
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\pet_game_plugin\\main.py",
+            "name": "Mascote"
+        },
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_flashcards\\main.py",
+            "name": "Flash Cards Avan\u00e7ado"
+        },
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_help\\main.py",
+            "name": "Ajuda Plugins"
+        },
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_markdown_guide\\main.py",
+            "name": "Guia Markdown"
+        }
     ]
 }

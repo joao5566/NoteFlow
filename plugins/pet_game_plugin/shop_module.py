@@ -12,19 +12,27 @@ import os
 import json
 import logging
 
+# Define o diretório deste módulo
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_shop_items():
+   
+
     items = []
-    main_items_path = "shop_items"
+    # Determina o diretório onde este módulo está localizado
+    module_dir = os.path.dirname(os.path.abspath(__file__))
+    # Cria o caminho completo para a pasta "shop_items" dentro do diretório do módulo
+    main_items_path = os.path.join(module_dir, "shop_items")
     hats_path = os.path.join(main_items_path, "hats")  # Caminho específico para chapéus
     body_colors_path = os.path.join(main_items_path, "body_colors")  # Novo caminho para as cores de corpo
 
-    # Carrega itens gerais
+    # Carrega itens gerais (exceto chapéus e cores de corpo)
     if os.path.exists(main_items_path):
         for file_name in os.listdir(main_items_path):
-            if file_name.endswith(".json") and file_name != "hats" and file_name != "body_colors":  # Ignora chapéus e cores de corpo
-                file_path = os.path.join(main_items_path, file_name)
+            file_path = os.path.join(main_items_path, file_name)
+            # Verifica se é um arquivo .json e se não é uma das pastas especiais
+            if os.path.isfile(file_path) and file_name.endswith(".json"):
                 try:
                     with open(file_path, "r", encoding="utf-8") as file:
                         item_data = json.load(file)
@@ -36,8 +44,8 @@ def load_shop_items():
     # Carrega chapéus
     if os.path.exists(hats_path):
         for file_name in os.listdir(hats_path):
-            if file_name.endswith(".json"):
-                file_path = os.path.join(hats_path, file_name)
+            file_path = os.path.join(hats_path, file_name)
+            if os.path.isfile(file_path) and file_name.endswith(".json"):
                 try:
                     with open(file_path, "r", encoding="utf-8") as file:
                         hat_data = json.load(file)
@@ -48,8 +56,8 @@ def load_shop_items():
     # Carrega cores de corpo
     if os.path.exists(body_colors_path):
         for file_name in os.listdir(body_colors_path):
-            if file_name.endswith(".json"):
-                file_path = os.path.join(body_colors_path, file_name)
+            file_path = os.path.join(body_colors_path, file_name)
+            if os.path.isfile(file_path) and file_name.endswith(".json"):
                 try:
                     with open(file_path, "r", encoding="utf-8") as file:
                         body_color_data = json.load(file)
@@ -59,6 +67,7 @@ def load_shop_items():
                     QMessageBox.warning(None, "Erro de JSON", f"Erro ao carregar {file_name}: {str(e)}")
 
     return items
+
 
 
 class ShapeWidget(QWidget):
@@ -551,50 +560,57 @@ class ShopModule(QWidget):
         widget = QWidget()
         layout = QHBoxLayout(widget)
         layout.setAlignment(Qt.AlignCenter)
-        layout.setSpacing(10)  # Espaçamento entre widgets
-        layout.setContentsMargins(10, 10, 10, 10)  # Margens internas
-
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
         # Adicionar imagem ao consumível
         image_label = QLabel()
-        image_path = item.get("image_path", "")  # Assegure-se de que 'image_path' está no JSON
+        image_path = item.get("image_path", "")
+        if image_path:
+            # Se o caminho não for absoluto, complemente-o com MODULE_DIR
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(MODULE_DIR, image_path)
+        
         if image_path and os.path.exists(image_path):
             pixmap = QPixmap(image_path)
             pixmap = pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             image_label.setPixmap(pixmap)
         else:
-            # Usar uma imagem padrão ou deixar vazio
+            # Usa uma imagem padrão (por exemplo, um QPixmap cinza)
             pixmap = QPixmap(64, 64)
             pixmap.fill(QColor("gray"))
             image_label.setPixmap(pixmap)
+        
         image_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(image_label)
-
+        
         # Detalhes do consumível
         details_layout = QVBoxLayout()
         name_label = QLabel(item.get("name", "Consumível"))
         name_label.setAlignment(Qt.AlignLeft)
         name_label.setFont(QFont("Arial", 12, QFont.Bold))
         details_layout.addWidget(name_label)
-
-        price_label = QLabel(f"Preço: {item.get("price", 0)} moedas")
+        
+        price_label = QLabel(f"Preço: {item.get('price', 0)} moedas")
         price_label.setAlignment(Qt.AlignLeft)
         details_layout.addWidget(price_label)
-
+        
         description = item.get("description", "Sem descrição")
         desc_label = QLabel(description)
         desc_label.setWordWrap(True)
         desc_label.setAlignment(Qt.AlignLeft)
-        desc_label.setStyleSheet("font-size: 12px;")  # Fonte menor para descrições
+        desc_label.setStyleSheet("font-size: 12px;")
         details_layout.addWidget(desc_label)
-
+        
         layout.addLayout(details_layout)
-
+        
         # Botão de compra
         button = QPushButton("Comprar")
         button.clicked.connect(lambda checked, i=item: self.buy_consumable(i))
         layout.addWidget(button)
-
+        
         return widget
+
 
     def create_purchased_consumable_widget(self, item, quantity):
         widget = QWidget()
@@ -606,6 +622,10 @@ class ShopModule(QWidget):
         # Ícone do consumível
         icon_label = QLabel()
         image_path = item.get("image_path", "")
+        if image_path:
+            # Se o caminho não for absoluto, completa com MODULE_DIR
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(MODULE_DIR, image_path)
         if image_path and os.path.exists(image_path):
             pixmap = QPixmap(image_path)
             pixmap = pixmap.scaled(48, 48, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -637,6 +657,7 @@ class ShopModule(QWidget):
 
         return widget
 
+
     def create_locked_item_widget(self, item):
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -646,7 +667,10 @@ class ShopModule(QWidget):
 
         # Adicionar imagem ao item bloqueado
         image_label = QLabel()
-        image_path = item.get("image_path", "")  # Assegure-se de que 'image_path' está no JSON
+        image_path = item.get("image_path", "")
+        if image_path:
+            if not os.path.isabs(image_path):
+                image_path = os.path.join(MODULE_DIR, image_path)
         if image_path and os.path.exists(image_path):
             pixmap = QPixmap(image_path)
             pixmap = pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -680,6 +704,7 @@ class ShopModule(QWidget):
         layout.addWidget(desc_label)
 
         return widget
+
 
     def buy_item(self, item):
         price = item.get("price", 0)

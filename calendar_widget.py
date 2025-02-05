@@ -21,7 +21,6 @@ import sqlite3
 import random
 import pyttsx3
 
-
 # Importações locais
 from persistence_module import (
     load_notes, save_notes, load_reminders, save_reminders,
@@ -29,7 +28,7 @@ from persistence_module import (
 )
 from tasks_table_module import TasksTableWidget
 from reminder_module import ReminderManager
-from gamification_module import PetGameModule
+#from gamification_module import PetGameModule  # Aba antiga removida!
 from task_module import TaskManager
 from simple_excel import SimpleExcelWidget
 from note_module import NoteDialog
@@ -50,25 +49,82 @@ from plugin_base import PluginTab
 # -----------------------------------------------
 # Funções para persistência de plugins
 # -----------------------------------------------
+
 CONFIG_FILE = "loaded_plugins.json"
 
 def load_plugin_config():
+    """
+    Retorna uma lista de dicionários no formato:
+       [{"file": caminho_do_plugin, "name": nome_do_plugin}, ...]
+    Se o arquivo não existir ou estiver em formato antigo (lista de strings),
+    converte para o novo formato.
+    """
     if not os.path.exists(CONFIG_FILE):
         return []
     try:
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data.get("plugins", [])
+            plugins = data.get("plugins", [])
+            # Se for uma lista de strings, converte para dicionários
+            if plugins and isinstance(plugins[0], str):
+                new_plugins = []
+                for file in plugins:
+                    new_plugins.append({
+                        "file": file,
+                        "name": os.path.splitext(os.path.basename(file))[0]
+                    })
+                return new_plugins
+            return plugins
     except Exception as e:
         print(f"Erro ao carregar config de plugins: {e}")
         return []
 
-def save_plugin_config(plugin_paths):
+def save_plugin_config(plugin_entries):
+    """
+    Salva a lista de plugins no formato de dicionários.
+    """
     try:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({"plugins": plugin_paths}, f, indent=4)
+            json.dump({"plugins": plugin_entries}, f, indent=4)
     except Exception as e:
         print(f"Erro ao salvar config de plugins: {e}")
+
+# -----------------------------------------------
+# Função auxiliar para obter o nome do plugin
+# -----------------------------------------------
+def get_plugin_name(plugin_file):
+    """
+    Tenta carregar o módulo e extrair o nome do plugin (através da variável
+    'plugin_class.name' ou usando o nome do arquivo). Se ocorrer erro, retorna
+    um nome padrão.
+    """
+    try:
+        plugin_dir = os.path.dirname(plugin_file)
+        if plugin_dir not in sys.path:
+            sys.path.insert(0, plugin_dir)
+        module_name = os.path.splitext(os.path.basename(plugin_file))[0]
+        spec = importlib.util.spec_from_file_location(module_name, plugin_file)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if plugin_dir in sys.path:
+            sys.path.remove(plugin_dir)
+        plugin_class = getattr(module, "plugin_class", None)
+        if plugin_class is None:
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if isinstance(attr, type) and issubclass(attr, PluginTab) and attr is not PluginTab:
+                    plugin_class = attr
+                    break
+        if plugin_class is None:
+            return os.path.splitext(os.path.basename(plugin_file))[0]
+        # Se a classe tiver um atributo 'name', use-o
+        if hasattr(plugin_class, "name"):
+            return plugin_class.name
+        else:
+            return os.path.splitext(os.path.basename(plugin_file))[0]
+    except Exception as e:
+        print(f"Erro ao obter nome do plugin: {e}")
+        return os.path.splitext(os.path.basename(plugin_file))[0]
 
 # -----------------------------------------------
 # Diálogo para Lembretes
@@ -105,7 +161,7 @@ class ReminderDialog(QDialog):
         self.layout.addWidget(self.message_input)
 
         # Botões de ação
-        self.buttons_layout = QHBoxLayout()
+        self.buttons_layout = QHBoxLayout(self)
         self.save_button = QPushButton("Salvar", self)
         self.save_button.clicked.connect(self.accept)
         self.cancel_button = QPushButton("Cancelar", self)
@@ -140,11 +196,9 @@ class PluginManagerDialog(QDialog):
         self.layout.addWidget(self.list_widget)
 
         self.button_box = QDialogButtonBox(self)
-
         self.add_button = self.button_box.addButton("Adicionar Plugin", QDialogButtonBox.ActionRole)
         self.update_list_button = self.button_box.addButton("Atualizar Lista de Plugs", QDialogButtonBox.ActionRole)
         self.close_button = self.button_box.addButton(QDialogButtonBox.Close)
-
         self.layout.addWidget(self.button_box)
 
         self.add_button.clicked.connect(self.add_plugin)
@@ -163,15 +217,23 @@ class PluginManagerDialog(QDialog):
             if os.path.isdir(item_path):
                 main_file = os.path.join(item_path, "main.py")
                 if os.path.exists(main_file):
-                    rel_path = os.path.relpath(main_file, self.plugin_folder)
-                    list_item = QListWidgetItem(rel_path)
-                    list_item.setData(Qt.UserRole, main_file)
+                    # Usa o nome salvo no arquivo de configuração, se disponível
+                    plugin_entries = load_plugin_config()
+                    plugin_name = None
+                    for entry in plugin_entries:
+                        if entry["file"] == os.path.abspath(main_file):
+                            plugin_name = entry.get("name")
+                            break
+                    if not plugin_name:
+                        plugin_name = get_plugin_name(os.path.abspath(main_file))
+                    list_item = QListWidgetItem(plugin_name)
+                    list_item.setData(Qt.UserRole, os.path.abspath(main_file))
                     self.list_widget.addItem(list_item)
 
     def load_selected_plugin(self, item):
-        """Carrega o plugin correspondente ao item selecionado."""
+        """Cria uma aba placeholder para o plugin correspondente ao item selecionado."""
         plugin_file = item.data(Qt.UserRole)
-        self.parent_app.load_plugin_file(plugin_file)
+        self.parent_app.load_plugin_file_lazy(plugin_file)
 
     def atualizar_lista_plugins(self):
         """Atualiza a lista de plugins e fecha o app, sem reiniciar automaticamente."""
@@ -185,8 +247,8 @@ class PluginManagerDialog(QDialog):
                 main_file = os.path.join(item_path, "main.py")
                 if os.path.exists(main_file):
                     abs_path = os.path.abspath(main_file)
-                    novos_plugins.append(abs_path)
-
+                    plugin_name = get_plugin_name(abs_path)
+                    novos_plugins.append({"file": abs_path, "name": plugin_name})
         save_plugin_config(novos_plugins)
         self.populate_list()
         QMessageBox.information(
@@ -246,17 +308,11 @@ class CalendarApp(QMainWindow):
         # Exibe a motivação
         self.show_random_motivation_label()
 
-        # Carrega os plugins persistidos dinamicamente
+        # Carrega os plugins persistidos dinamicamente (via lazy load)
         self.load_persistent_plugins()
 
         # Garante que a aba do Calendário seja a ativa na inicialização
         self.tabs.setCurrentWidget(self.calendar_tab)
-
-    # ------------------------------
-    # Métodos de Tema
-    # ------------------------------
-
-
 
     def ensure_theme_integrity(self, theme):
         default_theme = {
@@ -290,9 +346,6 @@ class CalendarApp(QMainWindow):
         font = QFont()
         font.setPointSize(font_size)
         QApplication.setFont(font)
-
-    # ------------------------------
-    # Inicialização da Interface com Lazy Load nas Abas
 
     def show_random_motivation_label(self):
         motivations = [
@@ -330,7 +383,6 @@ class CalendarApp(QMainWindow):
         message = random.choice(motivations)
         self.motivation_label.setText(message)
 
-    # ------------------------------
     def init_ui(self):
         self.setWindowIcon(QIcon('icone.ico'))
         self.central_widget = QWidget()
@@ -347,48 +399,56 @@ class CalendarApp(QMainWindow):
         # Carrega imediatamente a aba Calendário (essencial)
         self.init_calendar_tab()
 
-        # Define as demais abas para carregamento sob demanda (lazy load)
-        # Mapeia o título da aba à função de inicialização correspondente
+        # Outras abas (Notas, Tarefas, etc.) são carregadas sob demanda (lazy load)
         self.lazy_tabs = {
             "Tabela de Notas": self.init_notes_tab,
             "Tabela de Tarefas": self.init_tasks_tab,
             "Estatísticas": self.init_stats_tab,
             "Planilha Simples": self.init_excel_tab,
-            "Mascote Virtual": self.init_pet_game_tab,
             "Kanban": self.init_kanban_tab,
             "Editor de Texto": self.init_mind_map_tab
         }
-        # Cria abas placeholder para cada uma das abas lazy
         for tab_name in self.lazy_tabs:
             placeholder = QWidget()
-            placeholder.loaded = False  # marca como não carregado
+            placeholder.loaded = False
             self.tabs.addTab(placeholder, tab_name)
-        # Conecta o sinal para detectar mudança de aba
+        # Sinal de mudança de aba (para carregar o conteúdo sob demanda)
         self.tabs.currentChanged.connect(self.on_tab_changed)
 
         self.init_menu()
         self.refresh_calendar()
 
     def on_tab_changed(self, index):
-        """Quando o usuário muda de aba, carrega seu conteúdo se ainda não estiver carregado."""
-        tab_name = self.tabs.tabText(index)
-        if tab_name in self.lazy_tabs:
+        """
+        Ao trocar de aba, se a aba selecionada for um placeholder de plugin ou de página lazy,
+        carrega o conteúdo correspondente.
+        """
+        # Bloqueia sinais para evitar chamadas recursivas
+        self.tabs.blockSignals(True)
+        try:
             current_widget = self.tabs.widget(index)
-            if not getattr(current_widget, "loaded", False):
-                new_widget = self.lazy_tabs[tab_name](lazy=True)
-                new_widget.loaded = True
-                self.tabs.removeTab(index)
-                self.tabs.insertTab(index, new_widget, tab_name)
-                self.tabs.setCurrentIndex(index)
+            # Se for uma aba de plugin (placeholder possui atributo plugin_file)
+            if hasattr(current_widget, "plugin_file") and not getattr(current_widget, "loaded", False):
+                plugin_instance = self.load_plugin_instance(current_widget.plugin_file)
+                if plugin_instance is not None:
+                    plugin_instance.loaded = True
+                    self.tabs.removeTab(index)
+                    self.tabs.insertTab(index, plugin_instance, plugin_instance.name)
+                    self.tabs.setCurrentIndex(index)
+            # Se for uma aba lazy normal (das páginas internas)
+            elif self.tabs.tabText(index) in self.lazy_tabs:
+                if not getattr(current_widget, "loaded", False):
+                    new_widget = self.lazy_tabs[self.tabs.tabText(index)](lazy=True)
+                    new_widget.loaded = True
+                    self.tabs.removeTab(index)
+                    self.tabs.insertTab(index, new_widget, self.tabs.tabText(index))
+                    self.tabs.setCurrentIndex(index)
+        finally:
+            self.tabs.blockSignals(False)
 
-    # ------------------------------
-    # Funções de Inicialização das Abas
-    # Cada função aceita o parâmetro lazy (se True, apenas retorna o widget)
-    # ------------------------------
     def init_calendar_tab(self, lazy=False):
         self.calendar_tab = QWidget()
         self.calendar_layout = QVBoxLayout(self.calendar_tab)
-        # Controles de pesquisa, mês e ano
         self.controls_layout = QHBoxLayout()
         self.search_input = QLineEdit(self)
         self.search_input.setPlaceholderText("Pesquisar notas...")
@@ -455,13 +515,6 @@ class CalendarApp(QMainWindow):
         else:
             return self.excel_tab
 
-    def init_pet_game_tab(self, lazy=False):
-        self.pet_game_tab = PetGameModule(self)
-        if not lazy:
-            self.tabs.addTab(self.pet_game_tab, "Mascote Virtual")
-        else:
-            return self.pet_game_tab
-
     def init_kanban_tab(self, lazy=False):
         self.kanban_tab = KanbanTab(self)
         if not lazy:
@@ -476,13 +529,8 @@ class CalendarApp(QMainWindow):
         else:
             return self.mind_map_tab
 
-    # ------------------------------
-    # Configuração do Menu
-    # ------------------------------
     def init_menu(self):
         menubar = self.menuBar()
-
-        # Menu de Lembretes e Tarefas
         reminders_tasks_menu = menubar.addMenu("Lembretes e Tarefas")
         reminder_manager_action = QAction("Gerenciar Lembretes", self)
         reminder_manager_action.triggered.connect(self.open_reminder_manager)
@@ -491,7 +539,6 @@ class CalendarApp(QMainWindow):
         task_manager_action.triggered.connect(self.open_task_manager)
         reminders_tasks_menu.addAction(task_manager_action)
 
-        # Menu de Importação e Exportação
         import_export_menu = menubar.addMenu("Importar e Exportar")
         export_pdf_action = QAction("Exportar para PDF", self)
         export_pdf_action.triggered.connect(lambda: export_to_pdf(self))
@@ -503,7 +550,6 @@ class CalendarApp(QMainWindow):
         import_action.triggered.connect(lambda: import_notes(self, self.refresh_calendar))
         import_export_menu.addAction(import_action)
 
-        # Menu de Configurações
         config_menu = menubar.addMenu("Configurações")
         theme_action = QAction("Personalizar Tema", self)
         theme_action.triggered.connect(self.open_theme_dialog)
@@ -512,7 +558,6 @@ class CalendarApp(QMainWindow):
         exit_action.triggered.connect(self.close)
         config_menu.addAction(exit_action)
 
-        # Menu de Plugins aprimorado
         plugins_menu = menubar.addMenu("Plugins")
         manage_plugins_action = QAction("Gerenciar Plugins", self)
         manage_plugins_action.triggered.connect(self.open_plugin_manager)
@@ -521,16 +566,14 @@ class CalendarApp(QMainWindow):
         add_plugin_action.triggered.connect(self.load_plugin)
         plugins_menu.addAction(add_plugin_action)
 
-        # Menu de Ajuda
         help_menu = menubar.addMenu("Ajuda")
         about_action = QAction("Sobre", self)
         about_action.triggered.connect(lambda: show_about(self))
         help_menu.addAction(about_action)
 
-    # ------------------------------
-    # Métodos de Plugin
-    # ------------------------------
-    def load_plugin_file(self, plugin_file):
+    # ----- Métodos para carregamento de plugins via Lazy Loading -----
+    def load_plugin_instance(self, plugin_file):
+        """Importa o módulo do plugin e retorna a instância do plugin (classe derivada de PluginTab)."""
         try:
             plugin_dir = os.path.dirname(plugin_file)
             if plugin_dir not in sys.path:
@@ -554,39 +597,60 @@ class CalendarApp(QMainWindow):
 
             if plugin_class is None:
                 QMessageBox.warning(self, "Erro", "Nenhuma classe de plugin válida encontrada no arquivo.")
-                return
+                return None
 
             plugin_instance = plugin_class(self)
-            self.tabs.addTab(plugin_instance, plugin_instance.name)
-            self.tabs.setCurrentWidget(plugin_instance)
-            
-            plugins_list = load_plugin_config()
-            if plugin_file not in plugins_list:
-                plugins_list.append(plugin_file)
-                save_plugin_config(plugins_list)
+            return plugin_instance
         except Exception as e:
             QMessageBox.critical(self, "Erro ao carregar plugin", f"Ocorreu um erro:\n{e}")
+            return None
+
+    def load_plugin_file_lazy(self, plugin_file):
+        """
+        Adiciona uma aba placeholder para o plugin, que só será carregado quando o usuário selecionar a aba.
+        O placeholder usará o nome salvo (ou obtido) para exibir a aba.
+        """
+        # Verifica se já existe um nome salvo para este plugin no arquivo de configuração
+        plugin_entries = load_plugin_config()
+        plugin_name = None
+        for entry in plugin_entries:
+            if entry["file"] == plugin_file:
+                plugin_name = entry.get("name")
+                break
+        if not plugin_name:
+            plugin_name = get_plugin_name(plugin_file)
+            plugin_entries.append({"file": plugin_file, "name": plugin_name})
+            save_plugin_config(plugin_entries)
+
+        placeholder = QWidget()
+        placeholder.loaded = False
+        placeholder.plugin_file = plugin_file
+        layout = QVBoxLayout(placeholder)
+        msg = QLabel("Clique nesta aba para carregar o plugin", placeholder)
+        layout.addWidget(msg)
+        self.tabs.addTab(placeholder, plugin_name)
 
     def load_plugin(self):
+        """Carrega um plugin a partir de um arquivo selecionado pelo usuário (usando lazy loading)."""
         plugin_file, _ = QFileDialog.getOpenFileName(self, "Selecione o arquivo do plugin", "", "Python Files (*.py)")
         if plugin_file:
-            self.load_plugin_file(plugin_file)
+            self.load_plugin_file_lazy(plugin_file)
 
     def open_plugin_manager(self):
         dlg = PluginManagerDialog(self)
         dlg.exec_()
 
     def load_persistent_plugins(self):
-        plugins_list = load_plugin_config()
-        for plugin_file in plugins_list:
+        """Carrega os plugins persistidos criando abas placeholder para cada um (lazy load)."""
+        plugin_entries = load_plugin_config()
+        for entry in plugin_entries:
+            plugin_file = entry["file"]
             if os.path.exists(plugin_file):
-                self.load_plugin_file(plugin_file)
+                self.load_plugin_file_lazy(plugin_file)
             else:
                 print(f"Arquivo de plugin não encontrado: {plugin_file}")
+    # ---------------------------------------------------------------------
 
-    # ------------------------------
-    # Métodos de Calendário e Diálogos
-    # ------------------------------
     def refresh_calendar(self):
         self.notes = load_notes()
         year = self.current_date.year()
@@ -632,18 +696,14 @@ class CalendarApp(QMainWindow):
             save_theme(self.theme)
 
     def open_note_dialog(self, note_date):
-        # Recarrega todas as notas do DB para garantir que estão atualizadas
         all_notes = load_notes()
         day_notes = all_notes.get(note_date, [])
         dialog = DayNotesDialog(self, note_date, day_notes)
-        dialog.setModal(False)  # Torna o diálogo não modal
-        # Conecta o sinal 'finished' para tratar quando o diálogo for fechado
+        dialog.setModal(False)
         dialog.finished.connect(lambda result, d=dialog, nd=note_date: self.after_note_dialog(result, d, nd))
         dialog.show()
 
-
     def after_note_dialog(self, result, dialog, note_date):
-        # Se o usuário fechou o diálogo com "Aceitar"
         if result == QDialog.Accepted:
             updated_notes = dialog.get_notes()
             if updated_notes:
@@ -654,17 +714,15 @@ class CalendarApp(QMainWindow):
             save_notes(self.notes)
             self.refresh_calendar()
 
-
     def open_reminder_dialog(self):
         dialog = ReminderDialog(self)
         if dialog.exec_() == QDialog.Accepted:
             date, message = dialog.get_reminder()
-            if self.validate_reminder(date, message):
-                with sqlite3.connect(DB_PATH) as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("INSERT INTO reminders (date, message) VALUES (?, ?)", (date, message))
-                    conn.commit()
-                self.reminders = load_reminders()
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO reminders (date, message) VALUES (?, ?)", (date, message))
+                conn.commit()
+            self.reminders = load_reminders()
 
     def search_notes(self, text):
         for i in range(self.calendar_grid_layout.count()):
@@ -702,14 +760,11 @@ class CalendarApp(QMainWindow):
             self.reminders = load_reminders()
             save_reminders(self.reminders)
 
-# -----------------------------------------------
-# Ponto de Entrada do Aplicativo com Splash Screen
-# -----------------------------------------------
 def main():
     app = QApplication(sys.argv)
     
     # Cria a splash screen
-    splash_image = "splash.png"  # Substitua pelo caminho da sua imagem, se disponível.
+    splash_image = "splash.png"
     if os.path.exists(splash_image):
         pixmap = QPixmap(splash_image)
     else:
