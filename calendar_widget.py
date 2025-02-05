@@ -16,11 +16,12 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QIcon, QPalette, QColor, QFont, QPixmap
 from PyQt5.QtCore import QDate, Qt, QTimer
-
+import pygame
 import sqlite3
 import random
 import pyttsx3
-
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+import openpyxl
 # Importações locais
 from persistence_module import (
     load_notes, save_notes, load_reminders, save_reminders,
