@@ -30,7 +30,10 @@ p {
 
 .paragrafo{
     margin-top: 20px;
-
+    font-size: 20px;
+    line-height: 1.6;
+    text-align: justify;
+     color: #333;
 }
 
 /* Listas com espaçamento e tamanho de fonte ajustados */
@@ -107,40 +110,154 @@ body{
                     }
                     .codehilite .hll { background-color: #ffffcc; }
                 </style>
-            <div class='preview'><h1>Estoudo  sobre Ponteiros no C++</h1>
-<div class="paragrafo"><p>Os ponteiros em C++ permitem manipular a mesmoria de modo dinamico então programador pode alocar e desalocar memoria manualmente assim podendo ter um codigo mais performance se souber oque está fazendo ou ter problemas de vazamento de memoria se não souber oque esta fazendo.</p></div>
+            <div class='preview'><h1>Pointer Arithmetic</h1>
+<p>Comparando ponteiros para comparar ponteiros podemos usar o exemplo abaixo</p>
+<pre class="codehilite"><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
 
-<h2>1. O que é um Ponteiro?</h2>
-<p>Um ponteiro é uma variável que armazena o endereço de memória de outra variável.<br />
-Declaração de Ponteiros:</p>
-<pre class="codehilite"><code>int x = 10;
-int* ptr = &amp;x;  // ptr armazena o endereço de x
+
+using namespace std;
+
+
+int main(){
+
+
+    string s1 {&quot;Frank&quot;};
+    string s2 {&quot;Frank&quot;};
+
+
+    string *p1 {&amp;s1};
+    string *p2 {&amp;s2};
+    string *p3 {&amp;s1};
+
+
+    cout &lt;&lt; (p1 == p2) &lt;&lt; endl;
+    cout &lt;&lt; (p1 == p3) &lt;&lt; endl;
+    return 0;
+
+
+
+}
 </code></pre>
 
-<p>Aqui, <code>ptr</code> é um ponteiro para um <code>int</code> e guarda o endereço de x.</p>
-<h2>2. Ponteiros e Arrays</h2>
-<p>Em C++, o nome de um array é um ponteiro para seu primeiro elemento.</p>
-<pre class="codehilite"><code>int arr[] = {1, 2, 3, 4, 5};
-int* ptr = arr; // ptr aponta para arr[0]
+<h2>Looping um array usando ponteiros</h2>
+<div class="paragrafo">Quando usamos o operador de incremento nos ponteiros  ++   </br>
+ele não incrementa o valor do ponteiro e sim o valor do tipo do dado numero exemplo </br>
 
-std::cout &lt;&lt; &quot;Primeiro elemento: &quot; &lt;&lt; *ptr &lt;&lt; std::endl;  // 1
-std::cout &lt;&lt; &quot;Segundo elemento: &quot; &lt;&lt; *(ptr + 1) &lt;&lt; std::endl; // 2
+no meu compudador um  **int** tem 4 bites então ele vai incrementar a o ponteiro em 4 bites</br>
+então como os itens do array são guardados em seguncia ele vai fazer o loop na memoria aumentando o endereço de 4 em 4
+</div>
+
+<pre class="codehilite"><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+
+using namespace std;
+
+
+int main(){
+
+
+    int score[]{100,95,89,68,-1};
+    int *score_ptr{score};
+
+
+    while (*score_ptr != -1)
+    {
+        cout &lt;&lt; *score_ptr &lt;&lt; endl;
+        score_ptr++;
+    }
+
+    return 0;
+
+
+
+}
 </code></pre>
 
-<p>O deslocamento <code>(ptr + 1)</code> move o ponteiro para o próximo elemento.</p>
-<h2>3. Ponteiros e Alocação Dinâmic</h2>
-<p>Os ponteiros permitem alocar memória dinamicamente durante a execução usando <code>`new</code> e liberar com <code>delete.</code></p>
-<pre class="codehilite"><code>int* ptr = new int(10); // Aloca um int dinamicamente
-std::cout &lt;&lt; &quot;Valor: &quot; &lt;&lt; *ptr &lt;&lt; std::endl;
-delete ptr; // Libera a memória
+<h2>outro exemplo de uso de ponteiros</h2>
+<pre class="codehilite"><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+
+
+using namespace std;
+
+
+int main(){
+
+
+    char name[] {&quot;Frank&quot;};
+
+
+    char * char_prt1{nullptr};
+    char * char_prt2{nullptr};
+
+
+    char_prt1 = &amp;name[0]; //F
+    char_prt2 = &amp;name[3];//n
+
+
+    cout &lt;&lt; &quot;In the string &quot; &lt;&lt; name &lt;&lt; &quot;, &quot; &lt;&lt; *char_prt2 &lt;&lt; &quot; is &quot; &lt;&lt;
+    (char_prt2 - char_prt1) &lt;&lt; &quot; character away from &quot; &lt;&lt; *char_prt1&lt;&lt; endl;
+
+    return 0;
+
+
+
+}
 </code></pre>
 
-<p>Para arrays:</p>
-<pre class="codehilite"><code>int* arr = new int[5]; // Aloca um array de 5 inteiros
-for (int i = 0; i &lt; 5; i++)
-    arr[i] = i * 10;
+<h2>Trocar valores de ponteiros sem usar variavel temporaria</h2>
+<pre class="codehilite"><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
 
-delete[] arr; // Libera o array
+
+using namespace std;
+
+
+int numero1 = 20;
+
+
+int numero2 = 30;
+
+
+void swap_value(int* ptr1, int* ptr2){
+
+    *ptr1 = *ptr1 + *ptr2;
+    *ptr2 = *ptr1 - *ptr2;
+    *ptr1 = *ptr1 - *ptr2;
+
+
+    return;
+}
+
+
+int main(){
+
+
+    int num = 10;
+    int num2 = 5;
+    int *num_ptr = &amp;num;
+    int *num2_ptr = &amp;num2;
+
+
+    cout &lt;&lt; &quot;Ponteiro 1 igual a &quot; &lt;&lt; *num_ptr &lt;&lt; &quot; Ponteiro 2 &quot; &lt;&lt; *num2_ptr &lt;&lt; endl;
+
+
+    swap_value(num2_ptr,num_ptr);
+    cout &lt;&lt; &quot;Ponteiro 1 igual a &quot; &lt;&lt; *num_ptr &lt;&lt; &quot; Ponteiro 2 &quot; &lt;&lt; *num2_ptr &lt;&lt; endl;
+
+    return 0;
+
+
+}
 </code></pre>
 
-<p><img alt="imagem" src="IMAGE_PLACEHOLDER_1" /></p></div>
+<div class="paragrafo">
+explicação mais simples
+</div>
+
+<pre class="codehilite"><code>*ptr1 = *ptr1 + *ptr2; // *ptr1 = 10 + 5 = 15
+*ptr2 = *ptr1 - *ptr2; // *ptr2 = 15 - 5 = 10
+*ptr1 = *ptr1 - *ptr2; // *ptr1 = 15 - 10 = 5
+</code></pre></div>
