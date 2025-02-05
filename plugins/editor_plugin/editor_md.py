@@ -1,3 +1,4 @@
+# mind_map_plugin_tab.py
 import markdown
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QLineEdit, QTextEdit,
@@ -7,10 +8,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
+# Importa a classe base para plugins
+from plugin_base import PluginTab
+
 
 class FindReplaceDialog(QDialog):
     """Caixa de diálogo para busca e substituição."""
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Buscar e Substituir")
@@ -38,8 +41,6 @@ class FindReplaceDialog(QDialog):
         if find_text:
             cursor = self.parent().text_area.textCursor()
             document = self.parent().text_area.document()
-
-            # Busca o texto dentro do QTextEdit
             cursor = document.find(find_text, cursor)
             if cursor.isNull():
                 QMessageBox.information(self, "Busca", "Texto não encontrado!")
@@ -47,7 +48,7 @@ class FindReplaceDialog(QDialog):
                 self.parent().text_area.setTextCursor(cursor)
 
     def replace_text(self):
-        """Substitui o texto encontrado por outro."""        
+        """Substitui o texto encontrado por outro."""
         find_text = self.find_input.text()
         replace_text = self.replace_input.text()
         if find_text and replace_text:
@@ -58,16 +59,15 @@ class FindReplaceDialog(QDialog):
 
 
 class MindMapTab(QWidget):
-    """Aba para o Editor de Texto com funcionalidades avançadas.""" 
-
+    """Aba para o Editor de Texto com funcionalidades avançadas."""
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
 
         # Variáveis de estado para estilos
         self.current_text_color = "#000000"  # Cor padrão: preto
-        self.editor_font_size = 12  # Tamanho de fonte padrão do editor
-        self.preview_font_size = 12  # Tamanho de fonte padrão do preview
+        self.editor_font_size = 12           # Tamanho de fonte padrão do editor
+        self.preview_font_size = 12          # Tamanho de fonte padrão do preview
 
         # Título da aba
         self.layout.addWidget(QLabel("Editor de Texto"))
@@ -76,8 +76,6 @@ class MindMapTab(QWidget):
         self.text_area = QTextEdit(self)
         self.text_area.setFontPointSize(self.editor_font_size)
         self.layout.addWidget(self.text_area)
-
-        # Conecta o sinal de alteração de texto para atualizar o preview em tempo real
         self.text_area.textChanged.connect(self.update_preview)
 
         # Barra de ferramentas
@@ -85,10 +83,8 @@ class MindMapTab(QWidget):
         self.add_actions_to_toolbar()
         self.layout.addWidget(self.toolbar)
 
-        # Layout de botões
+        # Layout de botões para salvar, carregar e limpar
         self.button_layout = QHBoxLayout()
-
-        # Botões para salvar, carregar, limpar e visualizar
         self.save_button = QPushButton("Salvar", self)
         self.save_button.clicked.connect(self.save_file)
         self.button_layout.addWidget(self.save_button)
@@ -108,32 +104,28 @@ class MindMapTab(QWidget):
         self.preview_area.setVisible(True)  # Preview visível por padrão
         self.layout.addWidget(self.preview_area)
 
-        # Suporte para tema padrão (tema claro ou escuro)
+        # Suporte para tema (pode ser implementado conforme necessário)
         self.apply_theme()
 
         # Atualiza o preview inicialmente
         self.update_preview()
 
     def apply_theme(self):
-        """Aplica o tema de escuro/claro ao editor (padrão do sistema)"""
-        # O Qt gerencia o tema automaticamente com base nas configurações do sistema
+        """Aplica o tema (aqui é mantida a implementação padrão)."""
         pass
 
     def add_actions_to_toolbar(self):
         """Adiciona ações à barra de ferramentas para formatação de texto."""
-        # Ação de desfazer (Undo)
         undo_action = QAction("Desfazer", self)
         undo_action.setShortcut("Ctrl+Z")
         undo_action.triggered.connect(self.text_area.undo)
         self.toolbar.addAction(undo_action)
 
-        # Ação de refazer (Redo)
         redo_action = QAction("Refazer", self)
         redo_action.setShortcut("Ctrl+Y")
         redo_action.triggered.connect(self.text_area.redo)
         self.toolbar.addAction(redo_action)
 
-        # Ação de busca e substituição
         find_replace_action = QAction("Buscar e Substituir", self)
         find_replace_action.triggered.connect(self.open_find_replace_dialog)
         self.toolbar.addAction(find_replace_action)
@@ -207,26 +199,22 @@ class MindMapTab(QWidget):
     def update_preview(self):
         """Atualiza o preview em tempo real ao digitar o texto no editor."""
         markdown_text = self.text_area.toPlainText()
-        
-        # Converte Markdown para HTML com as extensões 'fenced_code', 'codehilite' e 'nl2br'
         html_content = markdown.markdown(
             markdown_text, 
             extensions=['fenced_code', 'codehilite', 'nl2br']
         )
-        
-        # Define estilos CSS para o preview, incluindo estilos para blocos de código
         css = f"""
         <style>
             .preview {{
                 font-size: {self.preview_font_size}px;
                 color: {self.current_text_color};
-                white-space: pre-wrap;  /* Preserva espaços e quebras de linha */
+                white-space: pre-wrap;
             }}
             pre {{
                 background-color: #f0f0f0;
                 padding: 10px;
                 border-radius: 5px;
-                white-space: pre;  /* Preserva a formatação do código */
+                white-space: pre;
                 font-family: monospace;
             }}
             code {{
@@ -235,21 +223,15 @@ class MindMapTab(QWidget):
                 border-radius: 3px;
                 font-family: monospace;
             }}
-            /* Estilos para codehilite */
             .codehilite {{
                 background: #f0f0f0;
                 padding: 10px;
                 border-radius: 5px;
             }}
             .codehilite .hll {{ background-color: #ffffcc }}
-            /* Adicione mais estilos conforme necessário */
         </style>
         """
-        
-        # Combina o CSS com o conteúdo HTML gerado dentro de uma div com a classe 'preview'
         full_html = f"{css}<div class='preview'>{html_content}</div>"
-        
-        # Atualiza a área de visualização com o HTML gerado
         self.preview_area.setHtml(full_html)
 
     def change_editor_font_size(self, size):
@@ -258,12 +240,12 @@ class MindMapTab(QWidget):
         current_font = self.text_area.currentFont()
         current_font.setPointSize(size)
         self.text_area.setCurrentFont(current_font)
-        self.update_preview()  # Atualiza o preview para refletir a mudança
+        self.update_preview()
 
     def change_preview_font_size(self, size):
         """Altera o tamanho da fonte no preview e atualiza o preview."""
         self.preview_font_size = size
-        self.update_preview()  # Atualiza o preview para refletir a mudança
+        self.update_preview()
 
     def change_text_color(self):
         """Altera a cor do texto no editor e atualiza o preview."""
@@ -271,4 +253,40 @@ class MindMapTab(QWidget):
         if color.isValid():
             self.current_text_color = color.name()
             self.text_area.setTextColor(color)
-            self.update_preview()  # Atualiza o preview para refletir a mudança
+            self.update_preview()
+
+
+###############################################################################
+# Plugin: Editor de Texto (Mind Map) como aba de plugin
+###############################################################################
+class PluginMindMapTab(PluginTab):
+    """
+    Plugin que adiciona uma aba com o Editor de Texto avançado.
+    """
+    name = "Editor de Texto"
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        # Instancia o editor (MindMapTab)
+        self.editor = MindMapTab(self)
+        layout.addWidget(self.editor)
+        self.setLayout(layout)
+
+
+# Variável global para o carregamento do plugin
+plugin_class = PluginMindMapTab
+
+# Código para teste independente (opcional)
+def main():
+    from PyQt5.QtWidgets import QApplication
+    import sys
+    app = QApplication(sys.argv)
+    window = PluginMindMapTab()
+    window.setWindowTitle("Plugin: Editor de Texto")
+    window.resize(800, 600)
+    window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

@@ -1,28 +1,44 @@
 {
     "plugins": [
         {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\editor_plugin\\main.py",
+            "name": "Editor de Texto",
+            "enabled": true
+        },
+        {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\kanban_plugin\\main.py",
-            "name": "Kanban"
+            "name": "Kanban",
+            "enabled": true
         },
         {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\paint_plugin\\main.py",
-            "name": "Pixel Art"
+            "name": "Pixel Art",
+            "enabled": true
         },
         {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\pet_game_plugin\\main.py",
-            "name": "Mascote"
+            "name": "Mascote",
+            "enabled": true
         },
         {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_flashcards\\main.py",
-            "name": "Flash Cards Avan\u00e7ado"
+            "name": "Flash cards",
+            "enabled": true
         },
         {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_help\\main.py",
-            "name": "Ajuda Plugins"
+            "name": "Ajuda Plugins",
+            "enabled": true
         },
         {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\plugin_markdown_guide\\main.py",
-            "name": "Guia Markdown"
+            "name": "Guia Markdown",
+            "enabled": true
+        },
+        {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\simple_excel\\main.py",
+            "name": "Planilha Simples",
+            "enabled": true
         }
     ]
 }

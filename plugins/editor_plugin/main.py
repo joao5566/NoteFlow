@@ -9,18 +9,17 @@ root_dir = os.path.abspath(os.path.join(current_dir, "..", ".."))
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-from plugin_flashcards import PluginFlashCards
-
+from editor_md import PluginMindMapTab
 
 # Define a variável global que será usada como ponto de entrada do plugin
-plugin_class = PluginFlashCards
+plugin_class = PluginMindMapTab
 
 # Se desejar, você pode definir também uma função para testar o plugin de forma independente:
 def main():
     from PyQt5.QtWidgets import QApplication
     app = QApplication(sys.argv)
-    window = PluginFlashCards()
-    window.setWindowTitle("Flash cards")
+    window = PluginMindMapTab()
+    window.setWindowTitle("Ajuda Plugins")
     window.show()
     sys.exit(app.exec_())
 
