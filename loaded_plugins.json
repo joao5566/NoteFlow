@@ -1,6 +1,10 @@
 {
     "plugins": [
         {
+            "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\kanban_plugin\\main.py",
+            "name": "Kanban"
+        },
+        {
             "file": "C:\\Users\\joao2\\NoteFlow\\plugins\\paint_plugin\\main.py",
             "name": "Pixel Art"
         },

@@ -39,7 +39,7 @@ from export_module import (
 )
 from stats_module import StatsWidget
 from day_notes_dialog import DayNotesDialog
-from kanban_tab import KanbanTab
+#from kanban_tab import KanbanTab  # REMOVIDO: Não iremos mais carregar o Kanban no main.
 from mind_map_tab import MindMapTab
 import plugin_libs
 
@@ -377,8 +377,7 @@ class CalendarApp(QMainWindow):
             "Não importa o quão devagar você vá, desde que não pare.",
             "Persista, a próxima tentativa pode ser a que dará certo.",
             "Seja a mudança que você quer ver no mundo.",
-            "A única maneira de alcançar o impossível é acreditar que é possível.",
-            "Seu esforço de hoje define suas conquistas de amanhã."
+            "A única maneira de alcançar o impossível é acreditar que é possível."
         ]
         message = random.choice(motivations)
         self.motivation_label.setText(message)
@@ -405,7 +404,6 @@ class CalendarApp(QMainWindow):
             "Tabela de Tarefas": self.init_tasks_tab,
             "Estatísticas": self.init_stats_tab,
             "Planilha Simples": self.init_excel_tab,
-            "Kanban": self.init_kanban_tab,
             "Editor de Texto": self.init_mind_map_tab
         }
         for tab_name in self.lazy_tabs:
@@ -514,13 +512,6 @@ class CalendarApp(QMainWindow):
             self.tabs.addTab(self.excel_tab, "Planilha Simples")
         else:
             return self.excel_tab
-
-    def init_kanban_tab(self, lazy=False):
-        self.kanban_tab = KanbanTab(self)
-        if not lazy:
-            self.tabs.addTab(self.kanban_tab, "Kanban")
-        else:
-            return self.kanban_tab
 
     def init_mind_map_tab(self, lazy=False):
         self.mind_map_tab = MindMapTab(self)
