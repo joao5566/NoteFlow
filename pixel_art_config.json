@@ -1,0 +1,8 @@
+{
+    "initial_ef": 25,
+    "cards_per_session": 10,
+    "auto_audio": true,
+    "max_undo_history": 100,
+    "default_canvas_resolution": 32,
+    "default_canvas_zoom": 10
+}

@@ -1,14 +1,20 @@
-# plugin_base.py
 from PyQt5.QtWidgets import QWidget
+from PyQt5.QtCore import pyqtSignal
 
 class PluginTab(QWidget):
-    """
-    Classe base que todo plugin deve herdar.
-    Cada plugin deve definir:
-      - o atributo 'name', que será o título da aba;
-      - sua própria interface (normalmente construída no __init__).
-    """
-    name = "Plugin Base"
+    # Sinal que pode ser emitido para notificar que o plugin foi atualizado
+    updated = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+    def refresh(self):
+        """Método que pode ser sobrescrito para atualizar a interface do plugin."""
+        self.updated.emit()
+
+    def configure(self):
+        """
+        Se o plugin tiver opções de configuração, este método pode
+        ser sobrescrito para abrir uma interface de configuração.
+        """
+        pass
