@@ -4,5 +4,7 @@
     "auto_audio": true,
     "max_undo_history": 100,
     "default_canvas_resolution": 32,
-    "default_canvas_zoom": 10
+    "default_canvas_zoom": 20,
+    "default_canvas_width": 32,
+    "default_canvas_height": 32
 }

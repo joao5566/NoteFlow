@@ -11,7 +11,8 @@ class PixelArtConfigDialog(QDialog):
         Exemplo:
             {
                 "max_undo_history": 100,
-                "default_canvas_resolution": 32,
+                "default_canvas_width": 32,
+                "default_canvas_height": 32,
                 "default_canvas_zoom": 10
             }
         """
@@ -30,12 +31,19 @@ class PixelArtConfigDialog(QDialog):
         self.undo_history_spin.setValue(self.current_config.get("max_undo_history", 100))
         layout.addWidget(self.undo_history_spin)
         
-        # Resolução Padrão do Canvas
-        layout.addWidget(QLabel("Resolução padrão do canvas (pixels):"))
-        self.canvas_res_spin = QSpinBox(self)
-        self.canvas_res_spin.setRange(16, 1024)  # Exemplo: 16 a 1024 pixels
-        self.canvas_res_spin.setValue(self.current_config.get("default_canvas_resolution", 32))
-        layout.addWidget(self.canvas_res_spin)
+        # Largura Padrão do Canvas
+        layout.addWidget(QLabel("Largura padrão do canvas (pixels):"))
+        self.canvas_width_spin = QSpinBox(self)
+        self.canvas_width_spin.setRange(16, 1024)  # Exemplo: 16 a 1024 pixels
+        self.canvas_width_spin.setValue(self.current_config.get("default_canvas_width", 32))
+        layout.addWidget(self.canvas_width_spin)
+        
+        # Altura Padrão do Canvas
+        layout.addWidget(QLabel("Altura padrão do canvas (pixels):"))
+        self.canvas_height_spin = QSpinBox(self)
+        self.canvas_height_spin.setRange(16, 1024)  # Exemplo: 16 a 1024 pixels
+        self.canvas_height_spin.setValue(self.current_config.get("default_canvas_height", 32))
+        layout.addWidget(self.canvas_height_spin)
         
         # Zoom Padrão do Canvas
         layout.addWidget(QLabel("Zoom padrão do canvas:"))
@@ -54,6 +62,7 @@ class PixelArtConfigDialog(QDialog):
         """Retorna um dicionário com a configuração definida pelo usuário."""
         return {
             "max_undo_history": self.undo_history_spin.value(),
-            "default_canvas_resolution": self.canvas_res_spin.value(),
+            "default_canvas_width": self.canvas_width_spin.value(),
+            "default_canvas_height": self.canvas_height_spin.value(),
             "default_canvas_zoom": self.canvas_zoom_spin.value()
         }
