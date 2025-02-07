@@ -10,8 +10,16 @@ Plugin Pixel Art com Modo de Animação Integrado
 - A pré-visualização dos frames aparece na aba "Preview" do painel direito, onde o usuário pode definir o tempo de exibição (mas não mais reordenar).
 - O usuário pode alternar entre o modo estático e o modo animação.
 """
-
 import sys, os, json, base64, copy, re
+# Obtém o caminho do diretório atual (onde está o seu plugin)
+plugin_dir = os.path.dirname(os.path.abspath(__file__))
+vendor_path = os.path.join(plugin_dir, 'vendor')
+
+# Insere o diretório vendor no início do sys.path, para que ele seja priorizado
+if vendor_path not in sys.path:
+    sys.path.insert(0, vendor_path)
+
+
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QPushButton, QColorDialog, QInputDialog, QMessageBox,
