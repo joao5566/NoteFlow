@@ -6,7 +6,7 @@ import sys
 import os
 import json
 import importlib.util
-import imageio
+
 # Importações de terceiros
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,

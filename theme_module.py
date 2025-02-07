@@ -57,10 +57,8 @@ class ThemeDialog(QDialog):
         self.text_color_button.clicked.connect(lambda: self.change_color("text"))
         self.layout.addRow("Cor do Texto:", self.text_color_button)
 
-        # Botão para alternar entre modo claro e escuro
-        self.dark_mode_button = QPushButton("Ativar Modo Claro")
-        self.dark_mode_button.clicked.connect(self.toggle_dark_mode)
-        self.layout.addRow("Modo de Exibição:", self.dark_mode_button)
+        
+        
 
         # Controle de tamanho da fonte
         self.font_size_spinbox = QSpinBox(self)
