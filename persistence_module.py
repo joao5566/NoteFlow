@@ -64,6 +64,13 @@ def init_db():
                 FOREIGN KEY (column_id) REFERENCES kanban_columns(id)
             )
         ''')
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS styles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                content TEXT NOT NULL
+            )
+        """)
         conn.commit()
 
         # Atualiza a tabela de notas para incluir as colunas raw_text, custom_css e is_markdown, se necessário

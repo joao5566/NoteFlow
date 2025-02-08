@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QTextEdit, QCompleter, QDialogButtonBox,
     QSpinBox, QInputDialog, QSplitter, QListView, QWidget
 )
-from PyQt5.QtCore import QTimer, Qt, QPoint
+from PyQt5.QtCore import QTimer, Qt, QPoint,QStringListModel
 from PyQt5.QtGui import QTextCursor, QTextCharFormat, QFont, QKeyEvent, QTextDocument
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 
@@ -235,6 +235,7 @@ class NoteDialog(QDialog):
     """Diálogo para criar ou editar uma nota com suporte a Markdown e HTML."""
     def __init__(self, parent=None, mode="view", note_date=None):
         super().__init__(parent)
+        self._closing = False
         self.setWindowTitle("Nota")
         self.setWindowFlags(self.windowFlags() | Qt.WindowMaximizeButtonHint | Qt.WindowMinimizeButtonHint)
         self.layout = QVBoxLayout(self)
@@ -334,7 +335,48 @@ class NoteDialog(QDialog):
         if mode == "edit":
             self.auto_save_timer = QTimer(self)
             self.auto_save_timer.timeout.connect(self.auto_save_note)
-            self.auto_save_timer.start(60000)
+            #self.auto_save_timer.start(60000)
+            self.auto_save_timer.start(20000)
+
+
+    def reject(self):
+        # Sobrescreve reject() para que, ao pressionar Esc ou fechar a janela,
+        # seja exibida a pergunta de salvar antes de sair.
+        if self._closing:
+            super().reject()
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Salvar alterações",
+            "Deseja salvar a nota antes de sair?",
+            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+            QMessageBox.Save
+        )
+        if reply == QMessageBox.Save:
+            self.handle_save()
+            self._closing = True
+            super().reject()
+        elif reply == QMessageBox.Discard:
+            self._closing = True
+            super().reject()
+        else:
+            # Se o usuário escolheu Cancel, não faz nada
+            return
+
+    def closeEvent(self, event):
+        # No fechamento da janela (por exemplo, clicando no X) também chamamos reject()
+        self.reject()
+        if self._closing:
+            event.accept()
+        else:
+            event.ignore()
+
+    def open_style_manager(self):
+        dialog = StyleManagerDialog(self)
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowMaximizeButtonHint)
+        dialog.exec_()
+ 
 
     def update_popup_height(self, height):
         if hasattr(self.note_edit, 'completer'):
@@ -369,6 +411,26 @@ class NoteDialog(QDialog):
         self.header_style_button.clicked.connect(self.configure_headers)
         self.format_buttons_layout.addWidget(self.header_style_button)
 
+
+    def load_available_styles(self):
+        """Carrega os nomes dos estilos salvos e retorna uma lista."""
+        with sqlite3.connect("data.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM styles ORDER BY name")
+            return [row[0] for row in cursor.fetchall()]
+
+    def apply_style(self, style_name):
+        """Aplica o estilo selecionado definindo header_css."""
+        with sqlite3.connect("data.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT content FROM styles WHERE name = ?", (style_name,))
+            row = cursor.fetchone()
+            if row:
+                self.header_css = row[0]
+                if self.is_markdown_mode:
+                    self.update_markdown_preview()
+
+
     def open_external_preview(self):
         """Abre uma janela externa com o preview da nota."""
         content = self.get_current_content()
@@ -382,6 +444,7 @@ class NoteDialog(QDialog):
     def configure_headers(self):
         dialog = QDialog(self)
         dialog.setWindowTitle("Regras Personalizadas")
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowMaximizeButtonHint)
         d_layout = QVBoxLayout(dialog)
         d_layout.addWidget(QLabel("Insira as regras CSS/HTML para personalizar seus elementos:"))
         html_editor = HTMLCompleterTextEdit(dialog, tab_spaces=4)
@@ -395,6 +458,13 @@ class NoteDialog(QDialog):
         tab_spin.setValue(4)
         tab_layout.addWidget(tab_spin)
         d_layout.addLayout(tab_layout)
+
+        # Botão para abrir o Gerenciador de Folhas de Estilo
+        manage_styles_button = QPushButton("Gerenciar folhas de estilo", dialog)
+        manage_styles_button.clicked.connect(self.open_style_manager)
+        dialog.setWindowFlags(dialog.windowFlags() | Qt.WindowMaximizeButtonHint)
+        d_layout.addWidget(manage_styles_button)
+        
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, dialog)
         d_layout.addWidget(buttons)
         buttons.accepted.connect(dialog.accept)
@@ -533,11 +603,49 @@ class NoteDialog(QDialog):
         self.tags_input.setText(",".join(tags))
 
     def auto_save_note(self):
-        content = self.get_current_content()
-        path = os.path.join(os.getcwd(), "auto_save_note.html")
-        with open(path, "w", encoding="utf-8") as file:
-            file.write(content)
-        print(f"Nota salva automaticamente em {path}")
+        # Se não houver conteúdo significativo, não realiza o auto-save.
+        if not self.note_edit.toPlainText().strip():
+            return
+
+        try:
+            # Se estiver no modo Markdown, converte o conteúdo para HTML
+            if self.is_markdown_mode:
+                raw_content = self.note_edit.toPlainText()
+                html_content = markdown.markdown(
+                    raw_content,
+                    extensions=['fenced_code', 'codehilite', 'nl2br']
+                )
+            else:
+                html_content = self.note_edit.toHtml()
+                raw_content = ""
+            
+            categories = ",".join(
+                cat.strip() for cat in self.category_input.text().split(",") if cat.strip()
+            )
+            tags = ",".join(
+                tag.strip() for tag in self.tags_input.text().split(",") if tag.strip()
+            )
+            
+            with sqlite3.connect("data.db") as conn:
+                cursor = conn.cursor()
+                # Se a nota já foi salva anteriormente (possui um note_id), faz UPDATE.
+                if hasattr(self, 'note_id'):
+                    cursor.execute(
+                        "UPDATE notes SET text = ?, raw_text = ?, categories = ?, tags = ?, is_markdown = ?, custom_css = ? WHERE id = ?",
+                        (html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css, self.note_id)
+                    )
+                else:
+                    # Se for a primeira vez (nota ainda não foi salva manualmente), faz INSERT e armazena o note_id.
+                    cursor.execute(
+                        "INSERT INTO notes (date, text, raw_text, categories, tags, is_markdown, custom_css) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (self.note_date, html_content, raw_content, categories, tags, int(self.is_markdown_mode), self.header_css)
+                    )
+                    self.note_id = cursor.lastrowid
+                conn.commit()
+            print("Nota auto-salva no banco de dados com sucesso.")
+        except Exception as e:
+            print("Erro no auto-save:", e)
+
 
     def get_current_content(self):
         raw_text = self.note_edit.toPlainText()
@@ -813,6 +921,123 @@ class NoteDialog(QDialog):
             found = self.note_edit.find(search_str)
             if not found:
                 QMessageBox.information(self, "Buscar", "Nenhuma ocorrência encontrada.")
+
+
+class StyleManagerDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Gerenciador de Folhas de Estilo")
+        self.resize(600, 400)
+        self.layout = QVBoxLayout(self)
+        
+        # Lista de estilos
+        self.style_list = QListView(self)
+        self.layout.addWidget(self.style_list)
+        
+        # Botões para adicionar, editar e excluir
+        self.button_layout = QHBoxLayout()
+        self.add_button = QPushButton("Adicionar", self)
+        self.edit_button = QPushButton("Editar", self)
+        self.delete_button = QPushButton("Excluir", self)
+        self.button_layout.addWidget(self.add_button)
+        self.button_layout.addWidget(self.edit_button)
+        self.button_layout.addWidget(self.delete_button)
+        self.layout.addLayout(self.button_layout)
+        
+        # Conecta os botões
+        self.add_button.clicked.connect(self.add_style)
+        self.edit_button.clicked.connect(self.edit_style)
+        self.delete_button.clicked.connect(self.delete_style)
+        
+        self.load_styles()
+    
+    def load_styles(self):
+        """Carrega os estilos do banco de dados e os exibe na lista."""
+        with sqlite3.connect("data.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM styles ORDER BY name")
+            styles = [row[0] for row in cursor.fetchall()]
+        self.model = QStringListModel(styles)
+        self.style_list.setModel(self.model)
+    
+    def add_style(self):
+        """Adiciona um novo estilo."""
+        name, ok = QInputDialog.getText(self, "Novo Estilo", "Nome do estilo:")
+        if not ok or not name.strip():
+            return
+        # Cria um diálogo para o usuário inserir o conteúdo do estilo
+        content_dialog = QDialog(self)
+        content_dialog.setWindowTitle("Conteúdo do Estilo")
+        dialog_layout = QVBoxLayout(content_dialog)
+        content_edit = QTextEdit(content_dialog)
+        dialog_layout.addWidget(content_edit)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, content_dialog)
+        dialog_layout.addWidget(buttons)
+        buttons.accepted.connect(content_dialog.accept)
+        buttons.rejected.connect(content_dialog.reject)
+        if content_dialog.exec_() == QDialog.Accepted:
+            content = content_edit.toPlainText()
+            with sqlite3.connect("data.db") as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("INSERT INTO styles (name, content) VALUES (?, ?)", (name, content))
+                    conn.commit()
+                except sqlite3.IntegrityError:
+                    QMessageBox.warning(self, "Erro", "Já existe um estilo com esse nome.")
+            self.load_styles()
+    
+    def edit_style(self):
+        """Edita o estilo selecionado."""
+        index = self.style_list.currentIndex()
+        if not index.isValid():
+            QMessageBox.warning(self, "Aviso", "Selecione um estilo para editar.")
+            return
+        style_name = index.data()
+        with sqlite3.connect("data.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT content FROM styles WHERE name = ?", (style_name,))
+            row = cursor.fetchone()
+            if not row:
+                return
+            current_content = row[0]
+        content_dialog = QDialog(self)
+        content_dialog.setWindowTitle(f"Editar Estilo: {style_name}")
+        # Adiciona a flag para exibir o botão de maximizar
+        content_dialog.setWindowFlags(content_dialog.windowFlags() | Qt.WindowMaximizeButtonHint)
+        
+        dialog_layout = QVBoxLayout(content_dialog)
+        # Em vez de usar QTextEdit, use CustomTextEdit para configurar o tab
+        content_edit = CustomTextEdit(content_dialog, tab_spaces=4)
+        content_edit.setPlainText(current_content)
+        dialog_layout.addWidget(content_edit)
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, content_dialog)
+        dialog_layout.addWidget(buttons)
+        buttons.accepted.connect(content_dialog.accept)
+        buttons.rejected.connect(content_dialog.reject)
+        if content_dialog.exec_() == QDialog.Accepted:
+            new_content = content_edit.toPlainText()
+            with sqlite3.connect("data.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE styles SET content = ? WHERE name = ?", (new_content, style_name))
+                conn.commit()
+            self.load_styles()
+
+    
+    def delete_style(self):
+        """Exclui o estilo selecionado."""
+        index = self.style_list.currentIndex()
+        if not index.isValid():
+            QMessageBox.warning(self, "Aviso", "Selecione um estilo para excluir.")
+            return
+        style_name = index.data()
+        confirm = QMessageBox.question(self, "Confirmação", f"Excluir o estilo '{style_name}'?")
+        if confirm == QMessageBox.Yes:
+            with sqlite3.connect("data.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM styles WHERE name = ?", (style_name,))
+                conn.commit()
+            self.load_styles()
+
 
 if __name__ == "__main__":
     from PyQt5.QtWidgets import QApplication
