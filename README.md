@@ -13,7 +13,7 @@ Um aplicativo de calendário interativo que permite gerenciar notas, tarefas, le
 - **Tema Personalizável**: Ajuste as cores do tema para melhor experiência de uso.
 
 ## Requisitos
-
+````
 altgraph
 asteval
 attrs
@@ -84,6 +84,7 @@ ujson
 urllib3
 zope.interface
 
+````
 
 ## Instalação
 
