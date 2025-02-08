@@ -117,16 +117,18 @@ class HTMLCompleterTextEdit(QTextEdit):
         super().keyPressEvent(event)
         self.handle_completion()
 
+    
+
     def textUnderCursor(self):
         cursor = self.textCursor()
         block_text = cursor.block().text()
-        pos_in_block = cursor.positionInBlock()
-        text_up_to_cursor = block_text[:pos_in_block]
-        index = text_up_to_cursor.rfind("<")
-        if index == -1:
-            index_space = text_up_to_cursor.rfind(" ")
-            return text_up_to_cursor[index_space+1:] if index_space != -1 else text_up_to_cursor
-        return text_up_to_cursor[index:]
+        pos = cursor.positionInBlock()
+        text_up_to_cursor = block_text[:pos]
+        words = text_up_to_cursor.split()
+        print("text_up_to_cursor:", repr(text_up_to_cursor))
+        print("words:", words)
+        return words[-1] if words else ""
+
 
     def handle_completion(self):
         prefix = self.textUnderCursor()
@@ -179,7 +181,9 @@ class MarkdownCompleterTextEdit(CustomTextEdit):
         block_text = cursor.block().text()
         pos = cursor.positionInBlock()
         text_up_to_cursor = block_text[:pos]
-        return text_up_to_cursor.split()[-1] if " " in text_up_to_cursor else text_up_to_cursor
+        words = text_up_to_cursor.split()
+        return words[-1] if words else ""
+
 
     def handle_completion(self):
         prefix = self.textUnderCursor()
